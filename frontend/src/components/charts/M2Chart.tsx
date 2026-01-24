@@ -47,7 +47,7 @@ export function M2Chart({
     if (!data || data.length === 0) return []
 
     // Combine all country data into unified date format
-    const dateMap = new Map<string, Record<string, number>>()
+    const dateMap = new Map<string, Record<string, string | number>>()
 
     data.forEach((countryData) => {
       if (selectedCountries && !selectedCountries.includes(countryData.country)) return
@@ -59,12 +59,12 @@ export function M2Chart({
         } else {
           existing[countryData.country] = point.roc6m
         }
-        dateMap.set(point.date, existing)
+        dateMap.set(point.date, existing as Record<string, string | number>)
       })
     })
 
     return Array.from(dateMap.values()).sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      (a, b) => new Date(String(a.date)).getTime() - new Date(String(b.date)).getTime()
     )
   }, [data, viewMode, selectedCountries])
 
@@ -108,10 +108,13 @@ export function M2Chart({
             borderRadius: '8px',
           }}
           labelFormatter={(label) => formatDateShort(label)}
-          formatter={(value: number, name: string) => [
-            viewMode === 'absolute' ? `$${value.toFixed(2)}T` : formatPercent(value),
-            name,
-          ]}
+          formatter={(value, name) => {
+            if (typeof value !== 'number') return ['-', String(name)]
+            return [
+              viewMode === 'absolute' ? `$${value.toFixed(2)}T` : formatPercent(value),
+              String(name),
+            ]
+          }}
         />
         <Legend />
 
