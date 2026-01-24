@@ -64,10 +64,13 @@ export function DebtMaturityChart({
             border: '1px solid var(--color-border)',
             borderRadius: '8px',
           }}
-          formatter={(value: number, name: string) => [
-            formatCurrency(value * 1e9),
-            name === 'sovereign' ? 'Sovereign' : name === 'igCorp' ? 'IG Corporate' : 'HY Corporate',
-          ]}
+          formatter={(value, name) => {
+            if (typeof value !== 'number') return ['-', String(name)]
+            return [
+              formatCurrency(value * 1e9),
+              name === 'sovereign' ? 'Sovereign' : name === 'igCorp' ? 'IG Corporate' : 'HY Corporate',
+            ]
+          }}
         />
         <Legend />
 

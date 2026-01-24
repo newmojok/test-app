@@ -9,13 +9,21 @@ import type {
 } from '@/types'
 
 // Generate realistic M2 data points
+interface M2DataPoint {
+  date: string
+  value: number
+  roc6m: number
+  yoyChange: number
+  zscore: number
+}
+
 function generateM2Data(
-  country: string,
+  _country: string,
   baseValue: number,
   startDate: Date,
   months: number
-): { date: string; value: number; roc6m: number; yoyChange: number; zscore: number }[] {
-  const data = []
+): M2DataPoint[] {
+  const data: M2DataPoint[] = []
   let value = baseValue
 
   for (let i = 0; i < months; i++) {
@@ -27,12 +35,12 @@ function generateM2Data(
     value *= 1 + growth
 
     // Calculate 6-month RoC
-    const prev6m = i >= 6 ? data[i - 6].value : value * 0.97
-    const roc6m = ((value - prev6m) / prev6m) * 100
+    const prev6mValue: number = i >= 6 ? data[i - 6].value : value * 0.97
+    const roc6m = ((value - prev6mValue) / prev6mValue) * 100
 
     // Calculate YoY change
-    const prevYear = i >= 12 ? data[i - 12].value : value * 0.92
-    const yoyChange = ((value - prevYear) / prevYear) * 100
+    const prevYearValue: number = i >= 12 ? data[i - 12].value : value * 0.92
+    const yoyChange = ((value - prevYearValue) / prevYearValue) * 100
 
     // Calculate z-score (simplified)
     const zscore = (roc6m - 3.5) / 2.5

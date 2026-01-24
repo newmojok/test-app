@@ -123,7 +123,8 @@ export function CreditImpulseChart({
             borderRadius: '8px',
           }}
           labelFormatter={(label) => formatDateShort(label)}
-          formatter={(value: number, name: string) => {
+          formatter={(value, name) => {
+            if (typeof value !== 'number') return ['-', name]
             if (name === 'impulse') return [`${value.toFixed(2)}%`, 'Credit Impulse']
             return [value.toFixed(2), name]
           }}
