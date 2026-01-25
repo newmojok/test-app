@@ -175,6 +175,9 @@ export function M2Chart({
                 onChange={(e) => setBtcLag(parseInt(e.target.value))}
                 className="px-2 py-1 text-xs rounded-md bg-muted border border-border"
               >
+                <option value="-12">BTC -12mo lead</option>
+                <option value="-6">BTC -6mo lead</option>
+                <option value="-3">BTC -3mo lead</option>
                 <option value="0">No lag</option>
                 <option value="3">BTC +3mo lag</option>
                 <option value="6">BTC +6mo lag</option>
@@ -215,7 +218,9 @@ export function M2Chart({
               }
               tickMargin={10}
               label={{
-                value: btcViewMode === 'yoy' ? `BTC YoY% (${btcLag}mo lag)` : `BTC Price (${btcLag}mo lag)`,
+                value: btcViewMode === 'yoy'
+                  ? `BTC YoY% (${btcLag < 0 ? Math.abs(btcLag) + 'mo lead' : btcLag === 0 ? 'no shift' : btcLag + 'mo lag'})`
+                  : `BTC Price (${btcLag < 0 ? Math.abs(btcLag) + 'mo lead' : btcLag === 0 ? 'no shift' : btcLag + 'mo lag'})`,
                 angle: 90,
                 position: 'insideRight',
                 style: { fill: '#f59e0b', fontSize: 10 },
