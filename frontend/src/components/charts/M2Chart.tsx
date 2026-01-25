@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   ReferenceArea,
   ReferenceLine,
+  ReferenceDot,
 } from 'recharts'
 import { formatDateShort, formatPercent } from '@/lib/utils'
 import type { M2CountryData, RecessionPeriod } from '@/types'
@@ -27,6 +28,15 @@ const RECESSION_PERIODS: RecessionPeriod[] = [
   { start: '2020-02-01', end: '2020-04-01', name: 'COVID-19' },
   { start: '2007-12-01', end: '2009-06-01', name: 'Great Recession' },
   { start: '2001-03-01', end: '2001-11-01', name: 'Dot-com' },
+]
+
+// Key inflection points where M2 signaled BTC moves
+const INFLECTION_POINTS = [
+  { date: '2016-06-01', label: 'M2↑ → BTC rally', type: 'bullish' },
+  { date: '2019-01-01', label: 'M2↑ → BTC bottom', type: 'bullish' },
+  { date: '2020-04-01', label: 'QE → BTC rally', type: 'bullish' },
+  { date: '2022-01-01', label: 'M2↓ → BTC top', type: 'bearish' },
+  { date: '2023-10-01', label: 'M2↑ → BTC rally', type: 'bullish' },
 ]
 
 interface M2ChartProps {
@@ -47,6 +57,9 @@ export function M2Chart({
   showBitcoinToggle = true,
 }: M2ChartProps) {
   const [showBitcoin, setShowBitcoin] = useState(true)
+  const [btcLag, setBtcLag] = useState(3) // Default 3 month lag (BTC follows M2)
+  const [btcViewMode, setBtcViewMode] = useState<'price' | 'yoy'>('yoy')
+  const [showSignals, setShowSignals] = useState(true)
 
   const chartData = useMemo(() => {
     if (!data || data.length === 0) return []
@@ -68,12 +81,21 @@ export function M2Chart({
       })
     })
 
-    // Add Bitcoin price data
+    // Add Bitcoin data with lag adjustment
     if (showBitcoin) {
-      mockBitcoinData.forEach((btcPoint) => {
-        const existing = dateMap.get(btcPoint.date)
-        if (existing) {
-          existing.BTC = btcPoint.price / 1000 // Convert to thousands for scale
+      mockBitcoinData.forEach((btcPoint, index) => {
+        // Apply lag: shift BTC data forward to show it follows M2
+        const laggedIndex = index + btcLag
+        if (laggedIndex < mockBitcoinData.length) {
+          const targetDate = mockBitcoinData[laggedIndex].date
+          const existing = dateMap.get(targetDate)
+          if (existing) {
+            if (btcViewMode === 'yoy' && btcPoint.yoyChange !== undefined) {
+              existing.BTC = btcPoint.yoyChange / 10 // Scale down YoY to fit chart
+            } else {
+              existing.BTC = btcPoint.price / 1000 // Price in thousands
+            }
+          }
         }
       })
     }
@@ -81,13 +103,20 @@ export function M2Chart({
     return Array.from(dateMap.values()).sort(
       (a, b) => new Date(String(a.date)).getTime() - new Date(String(b.date)).getTime()
     )
-  }, [data, viewMode, selectedCountries, showBitcoin])
+  }, [data, viewMode, selectedCountries, showBitcoin, btcLag, btcViewMode])
 
   const activeCountries = useMemo(() => {
     return data
       .filter((c) => !selectedCountries || selectedCountries.includes(c.country))
       .map((c) => c.country)
   }, [data, selectedCountries])
+
+  // Find inflection points that are in view
+  const visibleInflections = useMemo(() => {
+    if (!showSignals) return []
+    const dates = chartData.map(d => String(d.date))
+    return INFLECTION_POINTS.filter(ip => dates.includes(ip.date))
+  }, [chartData, showSignals])
 
   if (chartData.length === 0) {
     return (
@@ -100,10 +129,20 @@ export function M2Chart({
   return (
     <div>
       {showBitcoinToggle && (
-        <div className="flex justify-end mb-2">
+        <div className="flex flex-wrap items-center justify-end gap-2 mb-3">
+          <button
+            onClick={() => setShowSignals(!showSignals)}
+            className={`px-2 py-1 text-xs rounded-md transition-colors ${
+              showSignals
+                ? 'bg-purple-500 text-white'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+            }`}
+          >
+            Signals
+          </button>
           <button
             onClick={() => setShowBitcoin(!showBitcoin)}
-            className={`px-3 py-1 text-sm rounded-md transition-colors ${
+            className={`px-2 py-1 text-xs rounded-md transition-colors ${
               showBitcoin
                 ? 'bg-amber-500 text-white'
                 : 'bg-muted text-muted-foreground hover:bg-muted/80'
@@ -111,6 +150,28 @@ export function M2Chart({
           >
             ₿ BTC
           </button>
+          {showBitcoin && (
+            <>
+              <select
+                value={btcViewMode}
+                onChange={(e) => setBtcViewMode(e.target.value as 'price' | 'yoy')}
+                className="px-2 py-1 text-xs rounded-md bg-muted border border-border"
+              >
+                <option value="yoy">YoY %</option>
+                <option value="price">Price</option>
+              </select>
+              <select
+                value={btcLag}
+                onChange={(e) => setBtcLag(parseInt(e.target.value))}
+                className="px-2 py-1 text-xs rounded-md bg-muted border border-border"
+              >
+                <option value="0">No lag</option>
+                <option value="3">BTC +3mo lag</option>
+                <option value="6">BTC +6mo lag</option>
+                <option value="9">BTC +9mo lag</option>
+              </select>
+            </>
+          )}
         </div>
       )}
       <ResponsiveContainer width="100%" height={height}>
@@ -120,13 +181,13 @@ export function M2Chart({
             dataKey="date"
             tickFormatter={formatDateShort}
             stroke="var(--color-muted-foreground)"
-            tick={{ fontSize: 12 }}
+            tick={{ fontSize: 11 }}
             tickMargin={10}
           />
           <YAxis
             yAxisId="left"
             stroke="var(--color-muted-foreground)"
-            tick={{ fontSize: 12 }}
+            tick={{ fontSize: 11 }}
             tickFormatter={(value) =>
               viewMode === 'absolute' ? `$${value}T` : `${value.toFixed(1)}%`
             }
@@ -137,9 +198,18 @@ export function M2Chart({
               yAxisId="right"
               orientation="right"
               stroke="#f59e0b"
-              tick={{ fontSize: 12, fill: '#f59e0b' }}
-              tickFormatter={(value) => `$${value}K`}
+              tick={{ fontSize: 11, fill: '#f59e0b' }}
+              tickFormatter={(value) =>
+                btcViewMode === 'yoy' ? `${(value * 10).toFixed(0)}%` : `$${value}K`
+              }
               tickMargin={10}
+              label={{
+                value: btcViewMode === 'yoy' ? `BTC YoY% (${btcLag}mo lag)` : `BTC Price (${btcLag}mo lag)`,
+                angle: 90,
+                position: 'insideRight',
+                style: { fill: '#f59e0b', fontSize: 10 },
+                offset: 10,
+              }}
             />
           )}
           <Tooltip
@@ -147,11 +217,17 @@ export function M2Chart({
               backgroundColor: 'var(--color-card)',
               border: '1px solid var(--color-border)',
               borderRadius: '8px',
+              fontSize: '12px',
             }}
             labelFormatter={(label) => formatDateShort(label)}
             formatter={(value, name) => {
               if (typeof value !== 'number') return ['-', String(name)]
-              if (name === 'BTC') return [`$${(value * 1000).toLocaleString()}`, 'Bitcoin']
+              if (name === 'BTC') {
+                if (btcViewMode === 'yoy') {
+                  return [`${(value * 10).toFixed(1)}% YoY`, 'Bitcoin']
+                }
+                return [`$${(value * 1000).toLocaleString()}`, 'Bitcoin']
+              }
               return [
                 viewMode === 'absolute' ? `$${value.toFixed(2)}T` : formatPercent(value),
                 String(name),
@@ -190,6 +266,24 @@ export function M2Chart({
             />
           )}
 
+          {/* Inflection point signals */}
+          {showSignals && visibleInflections.map((ip, idx) => (
+            <ReferenceLine
+              key={idx}
+              yAxisId="left"
+              x={ip.date}
+              stroke={ip.type === 'bullish' ? '#22c55e' : '#ef4444'}
+              strokeDasharray="2 2"
+              strokeWidth={2}
+              label={{
+                value: ip.label,
+                fill: ip.type === 'bullish' ? '#22c55e' : '#ef4444',
+                fontSize: 9,
+                position: 'top',
+              }}
+            />
+          ))}
+
           {activeCountries.map((country) => (
             <Line
               key={country}
@@ -217,6 +311,12 @@ export function M2Chart({
           )}
         </ComposedChart>
       </ResponsiveContainer>
+
+      {showBitcoin && (
+        <div className="mt-2 text-xs text-muted-foreground text-center">
+          💡 Tip: M2 RoC typically leads BTC by 3-6 months. Adjust lag to see correlation.
+        </div>
+      )}
     </div>
   )
 }
