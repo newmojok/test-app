@@ -1,6 +1,6 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
-  LineChart,
+  ComposedChart,
   Line,
   XAxis,
   YAxis,
@@ -13,6 +13,7 @@ import {
 } from 'recharts'
 import { formatDateShort, formatPercent } from '@/lib/utils'
 import type { M2CountryData, RecessionPeriod } from '@/types'
+import { mockBitcoinData } from '@/data/mockData'
 
 const COUNTRY_COLORS: Record<string, string> = {
   US: '#3b82f6',
@@ -34,6 +35,7 @@ interface M2ChartProps {
   showRecessions?: boolean
   selectedCountries?: string[]
   height?: number
+  showBitcoinToggle?: boolean
 }
 
 export function M2Chart({
@@ -42,7 +44,10 @@ export function M2Chart({
   showRecessions = true,
   selectedCountries,
   height = 400,
+  showBitcoinToggle = true,
 }: M2ChartProps) {
+  const [showBitcoin, setShowBitcoin] = useState(true)
+
   const chartData = useMemo(() => {
     if (!data || data.length === 0) return []
 
@@ -63,10 +68,20 @@ export function M2Chart({
       })
     })
 
+    // Add Bitcoin price data
+    if (showBitcoin) {
+      mockBitcoinData.forEach((btcPoint) => {
+        const existing = dateMap.get(btcPoint.date)
+        if (existing) {
+          existing.BTC = btcPoint.price / 1000 // Convert to thousands for scale
+        }
+      })
+    }
+
     return Array.from(dateMap.values()).sort(
       (a, b) => new Date(String(a.date)).getTime() - new Date(String(b.date)).getTime()
     )
-  }, [data, viewMode, selectedCountries])
+  }, [data, viewMode, selectedCountries, showBitcoin])
 
   const activeCountries = useMemo(() => {
     return data
@@ -83,81 +98,125 @@ export function M2Chart({
   }
 
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={chartData} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.3} />
-        <XAxis
-          dataKey="date"
-          tickFormatter={formatDateShort}
-          stroke="var(--color-muted-foreground)"
-          tick={{ fontSize: 12 }}
-          tickMargin={10}
-        />
-        <YAxis
-          stroke="var(--color-muted-foreground)"
-          tick={{ fontSize: 12 }}
-          tickFormatter={(value) =>
-            viewMode === 'absolute' ? `$${value}T` : `${value.toFixed(1)}%`
-          }
-          tickMargin={10}
-        />
-        <Tooltip
-          contentStyle={{
-            backgroundColor: 'var(--color-card)',
-            border: '1px solid var(--color-border)',
-            borderRadius: '8px',
-          }}
-          labelFormatter={(label) => formatDateShort(label)}
-          formatter={(value, name) => {
-            if (typeof value !== 'number') return ['-', String(name)]
-            return [
-              viewMode === 'absolute' ? `$${value.toFixed(2)}T` : formatPercent(value),
-              String(name),
-            ]
-          }}
-        />
-        <Legend />
+    <div>
+      {showBitcoinToggle && (
+        <div className="flex justify-end mb-2">
+          <button
+            onClick={() => setShowBitcoin(!showBitcoin)}
+            className={`px-3 py-1 text-sm rounded-md transition-colors ${
+              showBitcoin
+                ? 'bg-amber-500 text-white'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+            }`}
+          >
+            ₿ BTC
+          </button>
+        </div>
+      )}
+      <ResponsiveContainer width="100%" height={height}>
+        <ComposedChart data={chartData} margin={{ top: 10, right: 60, left: 10, bottom: 10 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.3} />
+          <XAxis
+            dataKey="date"
+            tickFormatter={formatDateShort}
+            stroke="var(--color-muted-foreground)"
+            tick={{ fontSize: 12 }}
+            tickMargin={10}
+          />
+          <YAxis
+            yAxisId="left"
+            stroke="var(--color-muted-foreground)"
+            tick={{ fontSize: 12 }}
+            tickFormatter={(value) =>
+              viewMode === 'absolute' ? `$${value}T` : `${value.toFixed(1)}%`
+            }
+            tickMargin={10}
+          />
+          {showBitcoin && (
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              stroke="#f59e0b"
+              tick={{ fontSize: 12, fill: '#f59e0b' }}
+              tickFormatter={(value) => `$${value}K`}
+              tickMargin={10}
+            />
+          )}
+          <Tooltip
+            contentStyle={{
+              backgroundColor: 'var(--color-card)',
+              border: '1px solid var(--color-border)',
+              borderRadius: '8px',
+            }}
+            labelFormatter={(label) => formatDateShort(label)}
+            formatter={(value, name) => {
+              if (typeof value !== 'number') return ['-', String(name)]
+              if (name === 'BTC') return [`$${(value * 1000).toLocaleString()}`, 'Bitcoin']
+              return [
+                viewMode === 'absolute' ? `$${value.toFixed(2)}T` : formatPercent(value),
+                String(name),
+              ]
+            }}
+          />
+          <Legend />
 
-        {/* Recession shading */}
-        {showRecessions &&
-          RECESSION_PERIODS.map((recession, idx) => (
-            <ReferenceArea
-              key={idx}
-              x1={recession.start}
-              x2={recession.end}
-              fill="var(--color-destructive)"
-              fillOpacity={0.1}
-              strokeOpacity={0}
+          {/* Recession shading */}
+          {showRecessions &&
+            RECESSION_PERIODS.map((recession, idx) => (
+              <ReferenceArea
+                key={idx}
+                yAxisId="left"
+                x1={recession.start}
+                x2={recession.end}
+                fill="var(--color-destructive)"
+                fillOpacity={0.1}
+                strokeOpacity={0}
+              />
+            ))}
+
+          {/* Zero line for RoC view */}
+          {viewMode === 'roc' && (
+            <ReferenceLine yAxisId="left" y={0} stroke="var(--color-muted-foreground)" strokeDasharray="5 5" />
+          )}
+
+          {/* 5% threshold line */}
+          {viewMode === 'roc' && (
+            <ReferenceLine
+              yAxisId="left"
+              y={5}
+              stroke="var(--color-accent)"
+              strokeDasharray="3 3"
+              label={{ value: '5% threshold', fill: 'var(--color-accent)', fontSize: 10 }}
+            />
+          )}
+
+          {activeCountries.map((country) => (
+            <Line
+              key={country}
+              yAxisId="left"
+              type="monotone"
+              dataKey={country}
+              stroke={COUNTRY_COLORS[country] || '#888'}
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 4 }}
             />
           ))}
 
-        {/* Zero line for RoC view */}
-        {viewMode === 'roc' && (
-          <ReferenceLine y={0} stroke="var(--color-muted-foreground)" strokeDasharray="5 5" />
-        )}
-
-        {/* 5% threshold line */}
-        {viewMode === 'roc' && (
-          <ReferenceLine
-            y={5}
-            stroke="var(--color-accent)"
-            strokeDasharray="3 3"
-            label={{ value: '5% threshold', fill: 'var(--color-accent)', fontSize: 10 }}
-          />
-        )}
-
-        {activeCountries.map((country) => (
-          <Line
-            key={country}
-            type="monotone"
-            dataKey={country}
-            stroke={COUNTRY_COLORS[country] || '#888'}
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4 }}
-          />
-        ))}
-      </LineChart>
-    </ResponsiveContainer>
+          {showBitcoin && (
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="BTC"
+              stroke="#f59e0b"
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 4 }}
+              strokeDasharray="5 5"
+            />
+          )}
+        </ComposedChart>
+      </ResponsiveContainer>
+    </div>
   )
 }

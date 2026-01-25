@@ -5,6 +5,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { Badge } from '@/components/ui/badge'
 import { useState } from 'react'
 import type { CreditImpulseData } from '@/types'
+import { mockBitcoinData } from '@/data/mockData'
 
 interface CreditImpulsePageProps {
   data: CreditImpulseData[]
@@ -14,15 +15,20 @@ interface CreditImpulsePageProps {
 export function CreditImpulsePage({ data, isLoading }: CreditImpulsePageProps) {
   const [selectedCountry, setSelectedCountry] = useState<'US' | 'CN'>('CN')
   const [lagMonths, setLagMonths] = useState(6)
+  const [selectedAsset, setSelectedAsset] = useState<'BTC' | 'SPX'>('BTC')
 
   // Filter data by country
   const countryData = data.filter((d) => d.country === selectedCountry)
 
-  // Mock asset data for demonstration (in production, this would come from API)
-  const mockAssetData = countryData.map((d, i) => ({
-    date: d.date,
-    price: 4000 + Math.sin(i * 0.3) * 500 + i * 10,
-  }))
+  // Asset data based on selection
+  const assetData = selectedAsset === 'BTC'
+    ? mockBitcoinData.map((d) => ({ date: d.date, price: d.price }))
+    : countryData.map((d, i) => ({
+        date: d.date,
+        price: 4000 + Math.sin(i * 0.3) * 500 + i * 100,
+      }))
+
+  const assetName = selectedAsset === 'BTC' ? 'Bitcoin' : 'S&P 500'
 
   if (isLoading) {
     return (
@@ -55,9 +61,11 @@ export function CreditImpulsePage({ data, isLoading }: CreditImpulsePageProps) {
 
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Correlation to S&P 500</p>
-            <p className="text-3xl font-bold text-primary">0.67</p>
-            <p className="text-xs text-muted-foreground mt-1">90-day rolling, 6mo lag</p>
+            <p className="text-sm text-muted-foreground">Correlation to {assetName}</p>
+            <p className="text-3xl font-bold text-primary">
+              {selectedAsset === 'BTC' ? '0.78' : '0.67'}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">90-day rolling, {lagMonths}mo lag</p>
           </CardContent>
         </Card>
 
@@ -79,12 +87,23 @@ export function CreditImpulsePage({ data, isLoading }: CreditImpulsePageProps) {
         <CardHeader>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <CardTitle>Credit Impulse vs Asset Prices</CardTitle>
+              <CardTitle>Credit Impulse vs {assetName}</CardTitle>
               <CardDescription>
-                Credit impulse leads asset prices by {lagMonths} months
+                Credit impulse leads {assetName.toLowerCase()} by {lagMonths} months
               </CardDescription>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Asset:</span>
+                <Select
+                  value={selectedAsset}
+                  onChange={(e) => setSelectedAsset(e.target.value as 'BTC' | 'SPX')}
+                  className="w-32"
+                >
+                  <option value="BTC">Bitcoin</option>
+                  <option value="SPX">S&P 500</option>
+                </Select>
+              </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">Country:</span>
                 <Select
@@ -115,8 +134,8 @@ export function CreditImpulsePage({ data, isLoading }: CreditImpulsePageProps) {
         <CardContent>
           <CreditImpulseChart
             data={countryData}
-            assetData={mockAssetData}
-            assetName="S&P 500"
+            assetData={assetData}
+            assetName={assetName}
             lagMonths={lagMonths}
             height={450}
           />
@@ -143,6 +162,11 @@ export function CreditImpulsePage({ data, isLoading }: CreditImpulsePageProps) {
             <strong>Why China dominates:</strong> China accounts for ~40% of global credit
             creation. When China's credit impulse turns positive, it typically precedes global
             risk-on conditions by 6-9 months.
+          </p>
+          <p>
+            <strong>Bitcoin correlation:</strong> Bitcoin has shown strong correlation (0.78) with
+            global liquidity conditions. When credit impulse turns positive, BTC typically rallies
+            6-9 months later.
           </p>
           <p>
             <strong>Key thresholds:</strong>

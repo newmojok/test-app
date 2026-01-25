@@ -58,7 +58,72 @@ function generateM2Data(
 }
 
 const startDate = new Date('2020-01-01')
-const months = 60
+const months = 61 // Through January 2025
+
+// Bitcoin price data (monthly, USD) - for overlay on charts
+export const mockBitcoinData: { date: string; price: number }[] = [
+  { date: '2020-01-01', price: 7200 },
+  { date: '2020-02-01', price: 8500 },
+  { date: '2020-03-01', price: 6400 },
+  { date: '2020-04-01', price: 8800 },
+  { date: '2020-05-01', price: 9500 },
+  { date: '2020-06-01', price: 9100 },
+  { date: '2020-07-01', price: 11100 },
+  { date: '2020-08-01', price: 11700 },
+  { date: '2020-09-01', price: 10800 },
+  { date: '2020-10-01', price: 13800 },
+  { date: '2020-11-01', price: 19700 },
+  { date: '2020-12-01', price: 29000 },
+  { date: '2021-01-01', price: 33100 },
+  { date: '2021-02-01', price: 45200 },
+  { date: '2021-03-01', price: 58800 },
+  { date: '2021-04-01', price: 57700 },
+  { date: '2021-05-01', price: 37300 },
+  { date: '2021-06-01', price: 35000 },
+  { date: '2021-07-01', price: 41500 },
+  { date: '2021-08-01', price: 47100 },
+  { date: '2021-09-01', price: 43800 },
+  { date: '2021-10-01', price: 61300 },
+  { date: '2021-11-01', price: 57000 },
+  { date: '2021-12-01', price: 46200 },
+  { date: '2022-01-01', price: 38500 },
+  { date: '2022-02-01', price: 43200 },
+  { date: '2022-03-01', price: 45500 },
+  { date: '2022-04-01', price: 38000 },
+  { date: '2022-05-01', price: 31800 },
+  { date: '2022-06-01', price: 19900 },
+  { date: '2022-07-01', price: 23300 },
+  { date: '2022-08-01', price: 20000 },
+  { date: '2022-09-01', price: 19400 },
+  { date: '2022-10-01', price: 20500 },
+  { date: '2022-11-01', price: 17200 },
+  { date: '2022-12-01', price: 16500 },
+  { date: '2023-01-01', price: 23100 },
+  { date: '2023-02-01', price: 23500 },
+  { date: '2023-03-01', price: 28400 },
+  { date: '2023-04-01', price: 29200 },
+  { date: '2023-05-01', price: 27200 },
+  { date: '2023-06-01', price: 30500 },
+  { date: '2023-07-01', price: 29200 },
+  { date: '2023-08-01', price: 26000 },
+  { date: '2023-09-01', price: 27000 },
+  { date: '2023-10-01', price: 34500 },
+  { date: '2023-11-01', price: 37700 },
+  { date: '2023-12-01', price: 42200 },
+  { date: '2024-01-01', price: 42500 },
+  { date: '2024-02-01', price: 51800 },
+  { date: '2024-03-01', price: 71000 },
+  { date: '2024-04-01', price: 64000 },
+  { date: '2024-05-01', price: 67500 },
+  { date: '2024-06-01', price: 62700 },
+  { date: '2024-07-01', price: 64600 },
+  { date: '2024-08-01', price: 59000 },
+  { date: '2024-09-01', price: 63300 },
+  { date: '2024-10-01', price: 69500 },
+  { date: '2024-11-01', price: 91000 },
+  { date: '2024-12-01', price: 97000 },
+  { date: '2025-01-01', price: 102000 },
+]
 
 export const mockM2Data: M2CountryData[] = [
   {
@@ -103,7 +168,7 @@ export const mockM2Data: M2CountryData[] = [
   },
 ]
 
-export const mockCreditImpulseData: CreditImpulseData[] = Array.from({ length: 20 }, (_, i) => {
+export const mockCreditImpulseData: CreditImpulseData[] = Array.from({ length: 21 }, (_, i) => {
   const date = new Date('2020-01-01')
   date.setMonth(date.getMonth() + i * 3)
 
