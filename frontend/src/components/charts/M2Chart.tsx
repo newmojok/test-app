@@ -179,6 +179,7 @@ export function M2Chart({
                 <option value="3">BTC +3mo lag</option>
                 <option value="6">BTC +6mo lag</option>
                 <option value="9">BTC +9mo lag</option>
+                <option value="12">BTC +12mo lag</option>
               </select>
             </>
           )}
