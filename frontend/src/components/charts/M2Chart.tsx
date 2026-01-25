@@ -32,11 +32,11 @@ const RECESSION_PERIODS: RecessionPeriod[] = [
 
 // Key inflection points where M2 signaled BTC moves
 const INFLECTION_POINTS = [
-  { date: '2016-06-01', label: 'M2↑ → BTC rally', type: 'bullish' },
-  { date: '2019-01-01', label: 'M2↑ → BTC bottom', type: 'bullish' },
-  { date: '2020-04-01', label: 'QE → BTC rally', type: 'bullish' },
-  { date: '2022-01-01', label: 'M2↓ → BTC top', type: 'bearish' },
-  { date: '2023-10-01', label: 'M2↑ → BTC rally', type: 'bullish' },
+  { date: '2016-06-01', label: 'BTC rally', type: 'bullish' },
+  { date: '2019-01-01', label: 'BTC bottom', type: 'bullish' },
+  { date: '2020-04-01', label: 'QE signal', type: 'bullish' },
+  { date: '2022-01-01', label: 'BTC top', type: 'bearish' },
+  { date: '2023-10-01', label: 'BTC rally', type: 'bullish' },
 ]
 
 interface M2ChartProps {
@@ -83,18 +83,28 @@ export function M2Chart({
 
     // Add Bitcoin data with lag adjustment
     if (showBitcoin) {
-      mockBitcoinData.forEach((btcPoint, index) => {
-        // Apply lag: shift BTC data forward to show it follows M2
-        const laggedIndex = index + btcLag
-        if (laggedIndex < mockBitcoinData.length) {
-          const targetDate = mockBitcoinData[laggedIndex].date
-          const existing = dateMap.get(targetDate)
-          if (existing) {
-            if (btcViewMode === 'yoy' && btcPoint.yoyChange !== undefined) {
-              existing.BTC = btcPoint.yoyChange / 10 // Scale down YoY to fit chart
-            } else {
-              existing.BTC = btcPoint.price / 1000 // Price in thousands
-            }
+      // Create a map of BTC data by year-month for flexible matching
+      const btcByMonth = new Map<string, { price: number; yoyChange?: number }>()
+      mockBitcoinData.forEach((btcPoint) => {
+        const key = btcPoint.date.substring(0, 7) // "YYYY-MM"
+        btcByMonth.set(key, { price: btcPoint.price, yoyChange: btcPoint.yoyChange })
+      })
+
+      // Apply BTC data to chart with lag
+      dateMap.forEach((entry, dateStr) => {
+        const entryDate = new Date(dateStr)
+        // Subtract lag months to get the BTC data point that should align here
+        entryDate.setMonth(entryDate.getMonth() - btcLag)
+        const btcKey = entryDate.toISOString().substring(0, 7)
+        const btcData = btcByMonth.get(btcKey)
+
+        if (btcData) {
+          if (btcViewMode === 'yoy' && btcData.yoyChange !== undefined) {
+            entry.BTC = btcData.yoyChange / 10 // Scale down YoY to fit chart
+          } else if (btcViewMode === 'price') {
+            entry.BTC = btcData.price / 1000 // Price in thousands
+          } else if (btcData.yoyChange === undefined && btcViewMode === 'yoy') {
+            // For first year without YoY data, skip
           }
         }
       })
@@ -175,7 +185,7 @@ export function M2Chart({
         </div>
       )}
       <ResponsiveContainer width="100%" height={height}>
-        <ComposedChart data={chartData} margin={{ top: 10, right: 60, left: 10, bottom: 10 }}>
+        <ComposedChart data={chartData} margin={{ top: 30, right: 60, left: 10, bottom: 10 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.3} />
           <XAxis
             dataKey="date"
