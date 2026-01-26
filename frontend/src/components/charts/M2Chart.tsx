@@ -14,7 +14,7 @@ import {
 } from 'recharts'
 import { formatDateShort, formatPercent } from '@/lib/utils'
 import type { M2CountryData, RecessionPeriod } from '@/types'
-import { mockBitcoinData } from '@/data/mockData'
+import { mockBitcoinData, mockEthereumData } from '@/data/mockData'
 
 const COUNTRY_COLORS: Record<string, string> = {
   US: '#3b82f6',
@@ -57,8 +57,9 @@ export function M2Chart({
   showBitcoinToggle = true,
 }: M2ChartProps) {
   const [showBitcoin, setShowBitcoin] = useState(true)
-  const [btcLag, setBtcLag] = useState(3) // Default 3 month lag (BTC follows M2)
-  const [btcViewMode, setBtcViewMode] = useState<'price' | 'yoy'>('yoy')
+  const [showEthereum, setShowEthereum] = useState(false)
+  const [cryptoLag, setCryptoLag] = useState(3) // Default 3 month lag
+  const [cryptoViewMode, setCryptoViewMode] = useState<'price' | 'yoy'>('yoy')
   const [showSignals, setShowSignals] = useState(true)
 
   const chartData = useMemo(() => {
@@ -83,28 +84,56 @@ export function M2Chart({
 
     // Add Bitcoin data with lag adjustment
     if (showBitcoin) {
-      // Create a map of BTC data by year-month for flexible matching
       const btcByMonth = new Map<string, { price: number; yoyChange?: number }>()
       mockBitcoinData.forEach((btcPoint) => {
-        const key = btcPoint.date.substring(0, 7) // "YYYY-MM"
+        const key = btcPoint.date.substring(0, 7)
         btcByMonth.set(key, { price: btcPoint.price, yoyChange: btcPoint.yoyChange })
       })
 
-      // Apply BTC data to chart with lag
       dateMap.forEach((entry, dateStr) => {
         const entryDate = new Date(dateStr)
-        // Subtract lag months to get the BTC data point that should align here
-        entryDate.setMonth(entryDate.getMonth() - btcLag)
+        entryDate.setMonth(entryDate.getMonth() - cryptoLag)
         const btcKey = entryDate.toISOString().substring(0, 7)
         const btcData = btcByMonth.get(btcKey)
 
         if (btcData) {
-          if (btcViewMode === 'yoy' && btcData.yoyChange !== undefined) {
-            entry.BTC = btcData.yoyChange / 10 // Scale down YoY to fit chart
-          } else if (btcViewMode === 'price') {
-            entry.BTC = btcData.price / 1000 // Price in thousands
-          } else if (btcData.yoyChange === undefined && btcViewMode === 'yoy') {
-            // For first year without YoY data, skip
+          if (cryptoViewMode === 'yoy' && btcData.yoyChange !== undefined) {
+            entry.BTC = btcData.yoyChange / 10
+          } else if (cryptoViewMode === 'price') {
+            entry.BTC = btcData.price / 1000
+          }
+        }
+      })
+    }
+
+    // Add Ethereum data with lag adjustment
+    if (showEthereum) {
+      const ethByMonth = new Map<string, number>()
+      mockEthereumData.forEach((ethPoint) => {
+        if (ethPoint.price > 0) {
+          const key = ethPoint.date.substring(0, 7)
+          ethByMonth.set(key, ethPoint.price)
+        }
+      })
+
+      dateMap.forEach((entry, dateStr) => {
+        const entryDate = new Date(dateStr)
+        entryDate.setMonth(entryDate.getMonth() - cryptoLag)
+        const ethKey = entryDate.toISOString().substring(0, 7)
+        const ethPrice = ethByMonth.get(ethKey)
+
+        if (ethPrice !== undefined) {
+          if (cryptoViewMode === 'price') {
+            entry.ETH = ethPrice / 100 // Scale for chart
+          } else {
+            // Calculate YoY for ETH
+            const prevYearDate = new Date(entryDate)
+            prevYearDate.setFullYear(prevYearDate.getFullYear() - 1)
+            const prevKey = prevYearDate.toISOString().substring(0, 7)
+            const prevPrice = ethByMonth.get(prevKey)
+            if (prevPrice && prevPrice > 0) {
+              entry.ETH = ((ethPrice - prevPrice) / prevPrice) * 10 // Scale for chart
+            }
           }
         }
       })
@@ -113,7 +142,7 @@ export function M2Chart({
     return Array.from(dateMap.values()).sort(
       (a, b) => new Date(String(a.date)).getTime() - new Date(String(b.date)).getTime()
     )
-  }, [data, viewMode, selectedCountries, showBitcoin, btcLag, btcViewMode])
+  }, [data, viewMode, selectedCountries, showBitcoin, showEthereum, cryptoLag, cryptoViewMode])
 
   const activeCountries = useMemo(() => {
     return data
@@ -160,29 +189,39 @@ export function M2Chart({
           >
             ₿ BTC
           </button>
-          {showBitcoin && (
+          <button
+            onClick={() => setShowEthereum(!showEthereum)}
+            className={`px-2 py-1 text-xs rounded-md transition-colors ${
+              showEthereum
+                ? 'bg-indigo-500 text-white'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+            }`}
+          >
+            Ξ ETH
+          </button>
+          {(showBitcoin || showEthereum) && (
             <>
               <select
-                value={btcViewMode}
-                onChange={(e) => setBtcViewMode(e.target.value as 'price' | 'yoy')}
+                value={cryptoViewMode}
+                onChange={(e) => setCryptoViewMode(e.target.value as 'price' | 'yoy')}
                 className="px-2 py-1 text-xs rounded-md bg-muted border border-border"
               >
                 <option value="yoy">YoY %</option>
                 <option value="price">Price</option>
               </select>
               <select
-                value={btcLag}
-                onChange={(e) => setBtcLag(parseInt(e.target.value))}
+                value={cryptoLag}
+                onChange={(e) => setCryptoLag(parseInt(e.target.value))}
                 className="px-2 py-1 text-xs rounded-md bg-muted border border-border"
               >
-                <option value="-12">BTC -12mo lead</option>
-                <option value="-6">BTC -6mo lead</option>
-                <option value="-3">BTC -3mo lead</option>
+                <option value="-12">-12mo lead</option>
+                <option value="-6">-6mo lead</option>
+                <option value="-3">-3mo lead</option>
                 <option value="0">No lag</option>
-                <option value="3">BTC +3mo lag</option>
-                <option value="6">BTC +6mo lag</option>
-                <option value="9">BTC +9mo lag</option>
-                <option value="12">BTC +12mo lag</option>
+                <option value="3">+3mo lag</option>
+                <option value="6">+6mo lag</option>
+                <option value="9">+9mo lag</option>
+                <option value="12">+12mo lag</option>
               </select>
             </>
           )}
@@ -207,20 +246,20 @@ export function M2Chart({
             }
             tickMargin={10}
           />
-          {showBitcoin && (
+          {(showBitcoin || showEthereum) && (
             <YAxis
               yAxisId="right"
               orientation="right"
               stroke="#f59e0b"
               tick={{ fontSize: 11, fill: '#f59e0b' }}
               tickFormatter={(value) =>
-                btcViewMode === 'yoy' ? `${(value * 10).toFixed(0)}%` : `$${value}K`
+                cryptoViewMode === 'yoy' ? `${(value * 10).toFixed(0)}%` : `$${value}K`
               }
               tickMargin={10}
               label={{
-                value: btcViewMode === 'yoy'
-                  ? `BTC YoY% (${btcLag < 0 ? Math.abs(btcLag) + 'mo lead' : btcLag === 0 ? 'no shift' : btcLag + 'mo lag'})`
-                  : `BTC Price (${btcLag < 0 ? Math.abs(btcLag) + 'mo lead' : btcLag === 0 ? 'no shift' : btcLag + 'mo lag'})`,
+                value: cryptoViewMode === 'yoy'
+                  ? `Crypto YoY% (${cryptoLag < 0 ? Math.abs(cryptoLag) + 'mo lead' : cryptoLag === 0 ? 'no shift' : cryptoLag + 'mo lag'})`
+                  : `Crypto Price (${cryptoLag < 0 ? Math.abs(cryptoLag) + 'mo lead' : cryptoLag === 0 ? 'no shift' : cryptoLag + 'mo lag'})`,
                 angle: 90,
                 position: 'insideRight',
                 style: { fill: '#f59e0b', fontSize: 10 },
@@ -239,10 +278,16 @@ export function M2Chart({
             formatter={(value, name) => {
               if (typeof value !== 'number') return ['-', String(name)]
               if (name === 'BTC') {
-                if (btcViewMode === 'yoy') {
+                if (cryptoViewMode === 'yoy') {
                   return [`${(value * 10).toFixed(1)}% YoY`, 'Bitcoin']
                 }
                 return [`$${(value * 1000).toLocaleString()}`, 'Bitcoin']
+              }
+              if (name === 'ETH') {
+                if (cryptoViewMode === 'yoy') {
+                  return [`${(value * 10).toFixed(1)}% YoY`, 'Ethereum']
+                }
+                return [`$${(value * 100).toLocaleString()}`, 'Ethereum']
               }
               return [
                 viewMode === 'absolute' ? `$${value.toFixed(2)}T` : formatPercent(value),
@@ -325,12 +370,25 @@ export function M2Chart({
               strokeDasharray="5 5"
             />
           )}
+
+          {showEthereum && (
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="ETH"
+              stroke="#6366f1"
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 4 }}
+              strokeDasharray="3 3"
+            />
+          )}
         </ComposedChart>
       </ResponsiveContainer>
 
-      {showBitcoin && (
+      {(showBitcoin || showEthereum) && (
         <div className="mt-2 text-xs text-muted-foreground text-center">
-          💡 Tip: M2 RoC typically leads BTC by 3-6 months. Adjust lag to see correlation.
+          💡 Tip: M2 RoC typically leads crypto by 3-6 months. Adjust lag to see correlation.
         </div>
       )}
     </div>

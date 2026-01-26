@@ -279,6 +279,66 @@ export const mockSP500Data: { date: string; price: number }[] = [
   { date: '2026-01-01', price: 6520 },
 ]
 
+// Ethereum price data (monthly) - 2015 to Jan 2026
+export const mockEthereumData: { date: string; price: number }[] = [
+  // 2015 (ETH launched mid-2015)
+  { date: '2015-01-01', price: 0 }, { date: '2015-02-01', price: 0 }, { date: '2015-03-01', price: 0 },
+  { date: '2015-04-01', price: 0 }, { date: '2015-05-01', price: 0 }, { date: '2015-06-01', price: 0 },
+  { date: '2015-07-01', price: 0.75 }, { date: '2015-08-01', price: 1.20 }, { date: '2015-09-01', price: 0.70 },
+  { date: '2015-10-01', price: 0.95 }, { date: '2015-11-01', price: 0.90 }, { date: '2015-12-01', price: 0.90 },
+  // 2016
+  { date: '2016-01-01', price: 0.95 }, { date: '2016-02-01', price: 5.50 }, { date: '2016-03-01', price: 11.50 },
+  { date: '2016-04-01', price: 9.50 }, { date: '2016-05-01', price: 14.00 }, { date: '2016-06-01', price: 12.50 },
+  { date: '2016-07-01', price: 11.00 }, { date: '2016-08-01', price: 11.50 }, { date: '2016-09-01', price: 13.00 },
+  { date: '2016-10-01', price: 11.00 }, { date: '2016-11-01', price: 10.00 }, { date: '2016-12-01', price: 8.00 },
+  // 2017
+  { date: '2017-01-01', price: 10.00 }, { date: '2017-02-01', price: 13.00 }, { date: '2017-03-01', price: 52.00 },
+  { date: '2017-04-01', price: 68.00 }, { date: '2017-05-01', price: 180.00 }, { date: '2017-06-01', price: 280.00 },
+  { date: '2017-07-01', price: 195.00 }, { date: '2017-08-01', price: 390.00 }, { date: '2017-09-01', price: 305.00 },
+  { date: '2017-10-01', price: 305.00 }, { date: '2017-11-01', price: 470.00 }, { date: '2017-12-01', price: 740.00 },
+  // 2018
+  { date: '2018-01-01', price: 1100.00 }, { date: '2018-02-01', price: 880.00 }, { date: '2018-03-01', price: 400.00 },
+  { date: '2018-04-01', price: 670.00 }, { date: '2018-05-01', price: 580.00 }, { date: '2018-06-01', price: 455.00 },
+  { date: '2018-07-01', price: 475.00 }, { date: '2018-08-01', price: 285.00 }, { date: '2018-09-01', price: 230.00 },
+  { date: '2018-10-01', price: 200.00 }, { date: '2018-11-01', price: 115.00 }, { date: '2018-12-01', price: 135.00 },
+  // 2019
+  { date: '2019-01-01', price: 120.00 }, { date: '2019-02-01', price: 140.00 }, { date: '2019-03-01', price: 142.00 },
+  { date: '2019-04-01', price: 165.00 }, { date: '2019-05-01', price: 268.00 }, { date: '2019-06-01', price: 290.00 },
+  { date: '2019-07-01', price: 210.00 }, { date: '2019-08-01', price: 170.00 }, { date: '2019-09-01', price: 180.00 },
+  { date: '2019-10-01', price: 185.00 }, { date: '2019-11-01', price: 150.00 }, { date: '2019-12-01', price: 130.00 },
+  // 2020
+  { date: '2020-01-01', price: 180.00 }, { date: '2020-02-01', price: 225.00 }, { date: '2020-03-01', price: 135.00 },
+  { date: '2020-04-01', price: 215.00 }, { date: '2020-05-01', price: 240.00 }, { date: '2020-06-01', price: 230.00 },
+  { date: '2020-07-01', price: 340.00 }, { date: '2020-08-01', price: 430.00 }, { date: '2020-09-01', price: 360.00 },
+  { date: '2020-10-01', price: 395.00 }, { date: '2020-11-01', price: 620.00 }, { date: '2020-12-01', price: 740.00 },
+  // 2021
+  { date: '2021-01-01', price: 1380.00 }, { date: '2021-02-01', price: 1670.00 }, { date: '2021-03-01', price: 1920.00 },
+  { date: '2021-04-01', price: 2775.00 }, { date: '2021-05-01', price: 2715.00 }, { date: '2021-06-01', price: 2275.00 },
+  { date: '2021-07-01', price: 2530.00 }, { date: '2021-08-01', price: 3430.00 }, { date: '2021-09-01', price: 3000.00 },
+  { date: '2021-10-01', price: 4320.00 }, { date: '2021-11-01', price: 4630.00 }, { date: '2021-12-01', price: 3680.00 },
+  // 2022
+  { date: '2022-01-01', price: 2680.00 }, { date: '2022-02-01', price: 2920.00 }, { date: '2022-03-01', price: 3280.00 },
+  { date: '2022-04-01', price: 2815.00 }, { date: '2022-05-01', price: 1950.00 }, { date: '2022-06-01', price: 1070.00 },
+  { date: '2022-07-01', price: 1680.00 }, { date: '2022-08-01', price: 1555.00 }, { date: '2022-09-01', price: 1330.00 },
+  { date: '2022-10-01', price: 1570.00 }, { date: '2022-11-01', price: 1290.00 }, { date: '2022-12-01', price: 1195.00 },
+  // 2023
+  { date: '2023-01-01', price: 1585.00 }, { date: '2023-02-01', price: 1605.00 }, { date: '2023-03-01', price: 1820.00 },
+  { date: '2023-04-01', price: 1870.00 }, { date: '2023-05-01', price: 1875.00 }, { date: '2023-06-01', price: 1935.00 },
+  { date: '2023-07-01', price: 1880.00 }, { date: '2023-08-01', price: 1650.00 }, { date: '2023-09-01', price: 1670.00 },
+  { date: '2023-10-01', price: 1820.00 }, { date: '2023-11-01', price: 2090.00 }, { date: '2023-12-01', price: 2280.00 },
+  // 2024
+  { date: '2024-01-01', price: 2280.00 }, { date: '2024-02-01', price: 2950.00 }, { date: '2024-03-01', price: 3520.00 },
+  { date: '2024-04-01', price: 3250.00 }, { date: '2024-05-01', price: 3780.00 }, { date: '2024-06-01', price: 3450.00 },
+  { date: '2024-07-01', price: 3350.00 }, { date: '2024-08-01', price: 2550.00 }, { date: '2024-09-01', price: 2650.00 },
+  { date: '2024-10-01', price: 2520.00 }, { date: '2024-11-01', price: 3580.00 }, { date: '2024-12-01', price: 3420.00 },
+  // 2025-2026
+  { date: '2025-01-01', price: 3650.00 }, { date: '2025-02-01', price: 3200.00 }, { date: '2025-03-01', price: 2950.00 },
+  { date: '2025-04-01', price: 3400.00 }, { date: '2025-05-01', price: 3850.00 }, { date: '2025-06-01', price: 3600.00 },
+  { date: '2025-07-01', price: 4100.00 }, { date: '2025-08-01', price: 4450.00 }, { date: '2025-09-01', price: 4200.00 },
+  { date: '2025-10-01', price: 4650.00 }, { date: '2025-11-01', price: 4900.00 }, { date: '2025-12-01', price: 4750.00 },
+  { date: '2026-01-01', price: 5100.00 },
+]
+
 export const mockM2Data: M2CountryData[] = [
   {
     country: 'US',
@@ -322,23 +382,32 @@ export const mockM2Data: M2CountryData[] = [
   },
 ]
 
-// Credit impulse data quarterly from 2015
-export const mockCreditImpulseData: CreditImpulseData[] = Array.from({ length: 45 }, (_, i) => {
-  const date = new Date('2015-01-01')
-  date.setMonth(date.getMonth() + i * 3)
+// Credit impulse data quarterly from 2015 - China AND US
+const generateCreditImpulse = (country: 'CN' | 'US') => {
+  const phaseOffset = country === 'US' ? 1.5 : 0 // US slightly different cycle
+  const scale = country === 'US' ? 0.025 : 0.035 // US smaller impulse
 
-  // Create realistic credit impulse cycles
-  const cyclePhase = i * 0.35
-  const baseImpulse = Math.sin(cyclePhase) * 0.035
+  return Array.from({ length: 45 }, (_, i) => {
+    const date = new Date('2015-01-01')
+    date.setMonth(date.getMonth() + i * 3)
 
-  return {
-    date: date.toISOString().split('T')[0],
-    country: 'CN' as const,
-    newCredit: 2200 + i * 80 + Math.random() * 500,
-    gdp: 11000 + i * 600,
-    impulse: baseImpulse + (Math.random() - 0.5) * 0.015,
-  }
-})
+    const cyclePhase = i * 0.35 + phaseOffset
+    const baseImpulse = Math.sin(cyclePhase) * scale
+
+    return {
+      date: date.toISOString().split('T')[0],
+      country,
+      newCredit: country === 'CN' ? 2200 + i * 80 : 800 + i * 30,
+      gdp: country === 'CN' ? 11000 + i * 600 : 18000 + i * 400,
+      impulse: baseImpulse + (Math.random() - 0.5) * 0.012,
+    }
+  })
+}
+
+export const mockCreditImpulseData: CreditImpulseData[] = [
+  ...generateCreditImpulse('CN'),
+  ...generateCreditImpulse('US'),
+]
 
 export const mockQuarterlyMaturities: QuarterlyMaturity[] = [
   { quarter: 'Q1 2026', sovereign: 280, igCorp: 220, hyCorp: 85, total: 585 },

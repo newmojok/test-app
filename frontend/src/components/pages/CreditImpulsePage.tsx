@@ -5,7 +5,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { Badge } from '@/components/ui/badge'
 import { useState } from 'react'
 import type { CreditImpulseData } from '@/types'
-import { mockBitcoinData, mockSP500Data } from '@/data/mockData'
+import { mockBitcoinData, mockSP500Data, mockEthereumData } from '@/data/mockData'
 
 interface CreditImpulsePageProps {
   data: CreditImpulseData[]
@@ -15,7 +15,7 @@ interface CreditImpulsePageProps {
 export function CreditImpulsePage({ data, isLoading }: CreditImpulsePageProps) {
   const [selectedCountry, setSelectedCountry] = useState<'US' | 'CN'>('CN')
   const [lagMonths, setLagMonths] = useState(6)
-  const [selectedAsset, setSelectedAsset] = useState<'BTC' | 'SPX'>('BTC')
+  const [selectedAsset, setSelectedAsset] = useState<'BTC' | 'ETH' | 'SPX'>('BTC')
 
   // Filter data by country
   const countryData = data.filter((d) => d.country === selectedCountry)
@@ -23,9 +23,11 @@ export function CreditImpulsePage({ data, isLoading }: CreditImpulsePageProps) {
   // Asset data based on selection
   const assetData = selectedAsset === 'BTC'
     ? mockBitcoinData.map((d) => ({ date: d.date, price: d.price }))
+    : selectedAsset === 'ETH'
+    ? mockEthereumData.filter((d) => d.price > 0).map((d) => ({ date: d.date, price: d.price }))
     : mockSP500Data.map((d) => ({ date: d.date, price: d.price }))
 
-  const assetName = selectedAsset === 'BTC' ? 'Bitcoin' : 'S&P 500'
+  const assetName = selectedAsset === 'BTC' ? 'Bitcoin' : selectedAsset === 'ETH' ? 'Ethereum' : 'S&P 500'
 
   if (isLoading) {
     return (
@@ -94,10 +96,11 @@ export function CreditImpulsePage({ data, isLoading }: CreditImpulsePageProps) {
                 <span className="text-sm text-muted-foreground">Asset:</span>
                 <Select
                   value={selectedAsset}
-                  onChange={(e) => setSelectedAsset(e.target.value as 'BTC' | 'SPX')}
+                  onChange={(e) => setSelectedAsset(e.target.value as 'BTC' | 'ETH' | 'SPX')}
                   className="w-32"
                 >
                   <option value="BTC">Bitcoin</option>
+                  <option value="ETH">Ethereum</option>
                   <option value="SPX">S&P 500</option>
                 </Select>
               </div>
