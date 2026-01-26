@@ -5,7 +5,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { Badge } from '@/components/ui/badge'
 import { useState } from 'react'
 import type { CreditImpulseData } from '@/types'
-import { mockBitcoinData } from '@/data/mockData'
+import { mockBitcoinData, mockSP500Data } from '@/data/mockData'
 
 interface CreditImpulsePageProps {
   data: CreditImpulseData[]
@@ -23,10 +23,7 @@ export function CreditImpulsePage({ data, isLoading }: CreditImpulsePageProps) {
   // Asset data based on selection
   const assetData = selectedAsset === 'BTC'
     ? mockBitcoinData.map((d) => ({ date: d.date, price: d.price }))
-    : countryData.map((d, i) => ({
-        date: d.date,
-        price: 4000 + Math.sin(i * 0.3) * 500 + i * 100,
-      }))
+    : mockSP500Data.map((d) => ({ date: d.date, price: d.price }))
 
   const assetName = selectedAsset === 'BTC' ? 'Bitcoin' : 'S&P 500'
 
