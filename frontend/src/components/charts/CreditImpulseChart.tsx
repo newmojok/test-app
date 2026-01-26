@@ -32,32 +32,38 @@ export function CreditImpulseChart({
   const chartData = useMemo(() => {
     if (!data || data.length === 0) return []
 
-    const dateMap = new Map<string, { date: string; impulse: number; asset?: number }>()
-
-    // Add credit impulse data
-    data.forEach((point) => {
-      dateMap.set(point.date, {
-        date: point.date,
-        impulse: point.impulse * 100, // Convert to percentage
-      })
-    })
-
-    // Add asset data with lag if provided
+    // Create a map of asset data by year-month for flexible matching
+    const assetByMonth = new Map<string, number>()
     if (assetData) {
       assetData.forEach((point) => {
-        // Shift the asset date back by lagMonths to align with credit impulse
-        const originalDate = new Date(point.date)
-        originalDate.setMonth(originalDate.getMonth() - lagMonths)
-        const laggedDateStr = originalDate.toISOString().split('T')[0]
-
-        const existing = dateMap.get(laggedDateStr)
-        if (existing) {
-          existing.asset = point.price
-        }
+        const key = point.date.substring(0, 7) // "YYYY-MM"
+        assetByMonth.set(key, point.price)
       })
     }
 
-    return Array.from(dateMap.values()).sort(
+    // Build chart data from credit impulse dates
+    const result = data.map((point) => {
+      const entry: { date: string; impulse: number; asset?: number } = {
+        date: point.date,
+        impulse: point.impulse * 100, // Convert to percentage
+      }
+
+      // Find matching asset data with lag adjustment
+      if (assetData && assetByMonth.size > 0) {
+        const impulseDate = new Date(point.date)
+        // Add lag months to find the future asset price that corresponds to this impulse
+        impulseDate.setMonth(impulseDate.getMonth() + lagMonths)
+        const assetKey = impulseDate.toISOString().substring(0, 7)
+        const assetPrice = assetByMonth.get(assetKey)
+        if (assetPrice !== undefined) {
+          entry.asset = assetPrice
+        }
+      }
+
+      return entry
+    })
+
+    return result.sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     )
   }, [data, assetData, lagMonths])
@@ -106,13 +112,14 @@ export function CreditImpulseChart({
           <YAxis
             yAxisId="right"
             orientation="right"
-            stroke="var(--color-chart-blue)"
-            tick={{ fontSize: 12 }}
+            stroke="#f59e0b"
+            tick={{ fontSize: 12, fill: '#f59e0b' }}
+            tickFormatter={(value) => assetName === 'Bitcoin' ? `$${(value/1000).toFixed(0)}K` : `${value.toFixed(0)}`}
             label={{
               value: `${assetName} (${lagMonths}mo lag)`,
               angle: 90,
               position: 'insideRight',
-              style: { fill: 'var(--color-chart-blue)', fontSize: 12 },
+              style: { fill: '#f59e0b', fontSize: 12 },
             }}
           />
         )}
@@ -125,8 +132,9 @@ export function CreditImpulseChart({
           labelFormatter={(label) => formatDateShort(label)}
           formatter={(value, name) => {
             if (typeof value !== 'number') return ['-', name]
-            if (name === 'impulse') return [`${value.toFixed(2)}%`, 'Credit Impulse']
-            return [value.toFixed(2), name]
+            if (name === 'impulse' || name === 'Credit Impulse') return [`${value.toFixed(2)}%`, 'Credit Impulse']
+            if (assetName === 'Bitcoin') return [`$${value.toLocaleString()}`, assetName]
+            return [value.toFixed(0), assetName]
           }}
         />
         <Legend />
@@ -148,10 +156,11 @@ export function CreditImpulseChart({
             yAxisId="right"
             type="monotone"
             dataKey="asset"
-            stroke="var(--color-chart-blue)"
+            stroke="#f59e0b"
             strokeWidth={2}
             dot={false}
             name={assetName}
+            connectNulls={false}
           />
         )}
       </ComposedChart>
