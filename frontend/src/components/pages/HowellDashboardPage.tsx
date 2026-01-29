@@ -89,8 +89,14 @@ function getAggregateSignalFromMatrix(matrix: DecisionMatrixRow[]): {
 }
 
 export function HowellDashboardPage() {
-  const { howellIndicators, howellLastRefresh, howellIsRefreshing, refreshHowellIndicators } =
-    useAppStore()
+  const {
+    howellIndicators,
+    howellLastRefresh,
+    howellIsRefreshing,
+    refreshHowellIndicators,
+    howellRefreshErrors,
+    livePrices,
+  } = useAppStore()
 
   const netLiquidityData = useMemo(() => generateNetLiquidityHistory(), [])
   const decisionMatrix = useMemo(
@@ -152,9 +158,74 @@ export function HowellDashboardPage() {
           className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 transition-colors"
         >
           <RefreshCw className={`h-4 w-4 ${howellIsRefreshing ? 'animate-spin' : ''}`} />
-          {howellIsRefreshing ? 'Refreshing...' : 'Refresh All Data'}
+          {howellIsRefreshing ? 'Fetching Live Data...' : 'Refresh All Data'}
         </button>
       </div>
+
+      {/* Refresh Errors */}
+      {howellRefreshErrors.length > 0 && (
+        <Card className="border-yellow-500 bg-yellow-500/5">
+          <CardContent className="py-3">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-yellow-500 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-yellow-600">Some data sources unavailable:</p>
+                <ul className="text-xs text-muted-foreground mt-1">
+                  {howellRefreshErrors.map((error, i) => (
+                    <li key={i}>• {error}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Live Market Prices */}
+      {(livePrices.bitcoin || livePrices.ethereum || livePrices.sp500 || livePrices.gold) && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {livePrices.bitcoin && (
+            <Card className="bg-orange-500/5 border-orange-500/30">
+              <CardContent className="py-3">
+                <p className="text-xs text-muted-foreground">Bitcoin (Live)</p>
+                <p className="text-xl font-bold text-orange-500">
+                  ${livePrices.bitcoin.toLocaleString()}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+          {livePrices.ethereum && (
+            <Card className="bg-purple-500/5 border-purple-500/30">
+              <CardContent className="py-3">
+                <p className="text-xs text-muted-foreground">Ethereum (Live)</p>
+                <p className="text-xl font-bold text-purple-500">
+                  ${livePrices.ethereum.toLocaleString()}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+          {livePrices.sp500 && (
+            <Card className="bg-blue-500/5 border-blue-500/30">
+              <CardContent className="py-3">
+                <p className="text-xs text-muted-foreground">S&P 500 (Live)</p>
+                <p className="text-xl font-bold text-blue-500">
+                  {livePrices.sp500.toLocaleString()}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+          {livePrices.gold && (
+            <Card className="bg-yellow-500/5 border-yellow-500/30">
+              <CardContent className="py-3">
+                <p className="text-xs text-muted-foreground">Gold (Live)</p>
+                <p className="text-xl font-bold text-yellow-600">
+                  ${livePrices.gold.toLocaleString()}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Aggregate Signal Card */}
       <Card
