@@ -15,6 +15,9 @@ import { MaturitiesPage } from './components/pages/MaturitiesPage'
 import { CorrelationsPage } from './components/pages/CorrelationsPage'
 import { AlertsPage } from './components/pages/AlertsPage'
 import { SettingsPage } from './components/pages/SettingsPage'
+import { HowellDashboardPage } from './components/pages/HowellDashboardPage'
+import { HowellToolsPage } from './components/pages/HowellToolsPage'
+import { HowellFrameworkPage } from './components/pages/HowellFrameworkPage'
 
 // Mock data for development
 import {
@@ -95,6 +98,12 @@ function Dashboard() {
         )
       case 'correlations':
         return <CorrelationsPage data={mockCorrelationMatrix} isLoading={isLoading} />
+      case 'howell-dashboard':
+        return <HowellDashboardPage />
+      case 'howell-tools':
+        return <HowellToolsPage />
+      case 'howell-framework':
+        return <HowellFrameworkPage />
       case 'alerts':
         return (
           <AlertsPage

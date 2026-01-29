@@ -10,6 +10,9 @@ import {
   Settings,
   ChevronLeft,
   DollarSign,
+  Gauge,
+  Wrench,
+  BookOpen,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
@@ -18,6 +21,9 @@ const NAV_ITEMS = [
   { id: 'credit', label: 'Credit Impulse', icon: TrendingUp },
   { id: 'maturities', label: 'Debt Calendar', icon: Calendar },
   { id: 'correlations', label: 'Correlations', icon: Grid3X3 },
+  { id: 'howell-dashboard', label: 'Howell Dashboard', icon: Gauge },
+  { id: 'howell-tools', label: 'Howell Tools', icon: Wrench },
+  { id: 'howell-framework', label: 'Framework', icon: BookOpen },
   { id: 'alerts', label: 'Alerts', icon: Bell },
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
