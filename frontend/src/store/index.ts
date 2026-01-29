@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { CountryCode, Alert, ChartConfig } from '@/types'
 import type { HowellIndicator } from '@/data/howellIndicators'
 import { howellIndicators as defaultHowellIndicators } from '@/data/howellIndicators'
+import { fetchAllLiveData, type AllLiveData } from '@/services/liveDataApi'
 
 interface AppState {
   // UI State
@@ -20,6 +21,15 @@ interface AppState {
   howellIndicators: HowellIndicator[]
   howellLastRefresh: string | null
   howellIsRefreshing: boolean
+  howellRefreshErrors: string[]
+
+  // Live prices (for display elsewhere)
+  livePrices: {
+    bitcoin: number | null
+    ethereum: number | null
+    sp500: number | null
+    gold: number | null
+  }
 
   // Actions
   setSidebarOpen: (open: boolean) => void
@@ -57,6 +67,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   howellIndicators: defaultHowellIndicators,
   howellLastRefresh: null,
   howellIsRefreshing: false,
+  howellRefreshErrors: [],
+
+  // Live prices
+  livePrices: {
+    bitcoin: null,
+    ethereum: null,
+    sp500: null,
+    gold: null,
+  },
 
   // Actions
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
@@ -105,52 +124,143 @@ export const useAppStore = create<AppState>((set, get) => ({
   setHowellIndicators: (indicators) => set({ howellIndicators: indicators }),
 
   refreshHowellIndicators: async () => {
-    set({ howellIsRefreshing: true })
+    set({ howellIsRefreshing: true, howellRefreshErrors: [] })
 
     try {
-      // Simulate fetching fresh data with slight variations to show the refresh is working
-      // In production, this would call actual APIs (FRED, Yahoo Finance, etc.)
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      // Fetch real data from APIs
+      const liveData: AllLiveData = await fetchAllLiveData()
 
       const currentIndicators = get().howellIndicators
       const now = new Date().toISOString().split('T')[0]
 
-      // Update indicators with fresh timestamps and slight variations
-      const refreshedIndicators = currentIndicators.map((indicator) => {
-        // Add small random variation to values to simulate real-time updates
-        const variation = 1 + (Math.random() - 0.5) * 0.02 // ±1% variation
+      // Helper to determine signal based on indicator and value
+      const getSignalForIndicator = (
+        id: string,
+        value: number,
+        prevValue: number
+      ): { signal: 'bullish' | 'bearish' | 'neutral'; strength: number; interpretation: string } => {
+        switch (id) {
+          case 'dxy':
+            if (value < 98)
+              return {
+                signal: 'bullish',
+                strength: 70,
+                interpretation: `DXY at ${value.toFixed(1)} is below 98, providing tailwinds for risk assets and global liquidity.`,
+              }
+            if (value > 105)
+              return {
+                signal: 'bearish',
+                strength: 65,
+                interpretation: `DXY at ${value.toFixed(1)} represents dollar strength above 105, creating headwinds for global liquidity.`,
+              }
+            return {
+              signal: 'neutral',
+              strength: 50,
+              interpretation: `DXY at ${value.toFixed(1)} is in neutral territory (98-105). Watch for directional break.`,
+            }
 
+          case 'walcl':
+            const walclInT = value / 1e12
+            if (walclInT > 7.5)
+              return {
+                signal: 'bullish',
+                strength: 70,
+                interpretation: `Fed balance sheet at $${walclInT.toFixed(2)}T remains elevated, supporting liquidity conditions.`,
+              }
+            if (walclInT < 6.5)
+              return {
+                signal: 'bearish',
+                strength: 65,
+                interpretation: `Fed balance sheet at $${walclInT.toFixed(2)}T approaching QT targets, tightening liquidity.`,
+              }
+            return {
+              signal: 'neutral',
+              strength: 50,
+              interpretation: `Fed balance sheet at $${walclInT.toFixed(2)}T in transition phase of QT.`,
+            }
+
+          case 'tga':
+            const tgaInB = value / 1e9
+            if (tgaInB > 700)
+              return {
+                signal: 'bearish',
+                strength: 60,
+                interpretation: `TGA at $${tgaInB.toFixed(0)}B is elevated, draining reserves from the system.`,
+              }
+            if (tgaInB < 300)
+              return {
+                signal: 'bullish',
+                strength: 65,
+                interpretation: `TGA at $${tgaInB.toFixed(0)}B is low, releasing liquidity into the system.`,
+              }
+            return {
+              signal: 'neutral',
+              strength: 50,
+              interpretation: `TGA at $${tgaInB.toFixed(0)}B is at moderate levels.`,
+            }
+
+          case 'rrp':
+            const rrpInB = value / 1e9
+            if (rrpInB < 200)
+              return {
+                signal: 'bullish',
+                strength: 75,
+                interpretation: `RRP at $${rrpInB.toFixed(0)}B is near zero, indicating liquidity has been fully deployed into markets.`,
+              }
+            if (rrpInB > 1000)
+              return {
+                signal: 'bearish',
+                strength: 60,
+                interpretation: `RRP at $${rrpInB.toFixed(0)}B shows excess liquidity parked at the Fed rather than in markets.`,
+              }
+            return {
+              signal: 'neutral',
+              strength: 55,
+              interpretation: `RRP at $${rrpInB.toFixed(0)}B declining, gradually releasing liquidity.`,
+            }
+
+          default:
+            return { signal: 'neutral', strength: 50, interpretation: '' }
+        }
+      }
+
+      // Update indicators with real data where available
+      const refreshedIndicators = currentIndicators.map((indicator) => {
         let newValue = indicator.currentValue
         let newSignal = indicator.signal
         let newSignalStrength = indicator.signalStrength
+        let newInterpretation = indicator.interpretation
+        let source = indicator.source.name
 
-        // Apply variation based on indicator type
-        if (indicator.id === 'dxy') {
-          // Dollar index: slight variation around current value
-          newValue = Math.round(indicator.currentValue * variation * 10) / 10
-          if (newValue < 98) {
-            newSignal = 'bullish'
-            newSignalStrength = 65
-          } else if (newValue > 103) {
-            newSignal = 'bearish'
-            newSignalStrength = 60
-          } else {
-            newSignal = 'neutral'
-            newSignalStrength = 50
-          }
-        } else if (indicator.id === 'move') {
-          newValue = Math.round(indicator.currentValue * variation)
-          if (newValue < 100) {
-            newSignal = 'neutral'
-            newSignalStrength = 50
-          } else if (newValue > 120) {
-            newSignal = 'bearish'
-            newSignalStrength = 70
-          }
-        } else if (indicator.id === 'rrp' || indicator.id === 'tga') {
-          newValue = indicator.currentValue * variation
-        } else if (indicator.id === 'walcl' || indicator.id === 'ecb') {
-          newValue = indicator.currentValue * (1 + (Math.random() - 0.5) * 0.005) // Smaller variation for balance sheets
+        // Map live data to indicators
+        if (indicator.id === 'walcl' && liveData.fed.walcl) {
+          newValue = liveData.fed.walcl.value
+          source = 'FRED (Live)'
+          const signalData = getSignalForIndicator('walcl', newValue, indicator.currentValue)
+          newSignal = signalData.signal
+          newSignalStrength = signalData.strength
+          newInterpretation = signalData.interpretation
+        } else if (indicator.id === 'tga' && liveData.fed.tga) {
+          newValue = liveData.fed.tga.value
+          source = 'FRED (Live)'
+          const signalData = getSignalForIndicator('tga', newValue, indicator.currentValue)
+          newSignal = signalData.signal
+          newSignalStrength = signalData.strength
+          newInterpretation = signalData.interpretation
+        } else if (indicator.id === 'rrp' && liveData.fed.rrp) {
+          newValue = liveData.fed.rrp.value
+          source = 'FRED (Live)'
+          const signalData = getSignalForIndicator('rrp', newValue, indicator.currentValue)
+          newSignal = signalData.signal
+          newSignalStrength = signalData.strength
+          newInterpretation = signalData.interpretation
+        } else if (indicator.id === 'dxy' && liveData.market.dxy) {
+          newValue = liveData.market.dxy.value
+          source = liveData.market.dxy.source + ' (Live)'
+          const signalData = getSignalForIndicator('dxy', newValue, indicator.currentValue)
+          newSignal = signalData.signal
+          newSignalStrength = signalData.strength
+          newInterpretation = signalData.interpretation
         }
 
         return {
@@ -159,18 +269,44 @@ export const useAppStore = create<AppState>((set, get) => ({
           currentValue: newValue,
           signal: newSignal,
           signalStrength: newSignalStrength,
+          interpretation: newInterpretation,
           lastUpdated: now,
+          source: { ...indicator.source, name: source },
         }
       })
+
+      // Update live prices
+      const newLivePrices = {
+        bitcoin: liveData.crypto.bitcoin?.price ?? get().livePrices.bitcoin,
+        ethereum: liveData.crypto.ethereum?.price ?? get().livePrices.ethereum,
+        sp500: liveData.market.sp500?.price ?? get().livePrices.sp500,
+        gold: liveData.market.gold?.price ?? get().livePrices.gold,
+      }
 
       set({
         howellIndicators: refreshedIndicators,
         howellLastRefresh: new Date().toISOString(),
         howellIsRefreshing: false,
+        howellRefreshErrors: liveData.errors,
+        livePrices: newLivePrices,
+      })
+
+      // Log what was updated
+      console.log('Live data refresh complete:', {
+        btc: liveData.crypto.bitcoin?.price,
+        eth: liveData.crypto.ethereum?.price,
+        dxy: liveData.market.dxy?.value,
+        walcl: liveData.fed.walcl?.value,
+        tga: liveData.fed.tga?.value,
+        rrp: liveData.fed.rrp?.value,
+        errors: liveData.errors,
       })
     } catch (error) {
       console.error('Failed to refresh Howell indicators:', error)
-      set({ howellIsRefreshing: false })
+      set({
+        howellIsRefreshing: false,
+        howellRefreshErrors: ['Failed to fetch live data. Please try again.'],
+      })
     }
   },
 }))

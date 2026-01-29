@@ -274,64 +274,178 @@ export function calculateNetLiquidity(
   return fedBalance - tga - rrp
 }
 
-// Bitcoin price data from 2020-01 to 2026-01 (monthly) for overlay
+// Bitcoin price data from 2015-01 to 2026-01 (monthly) for overlay
+// Extended history to show full liquidity-BTC correlation over multiple cycles
 const btcPriceHistory: Record<string, number> = {
+  // 2015
+  '2015-01': 315, '2015-02': 254, '2015-03': 244, '2015-04': 236, '2015-05': 237, '2015-06': 263,
+  '2015-07': 285, '2015-08': 230, '2015-09': 237, '2015-10': 315, '2015-11': 378, '2015-12': 430,
+  // 2016
+  '2016-01': 378, '2016-02': 436, '2016-03': 416, '2016-04': 454, '2016-05': 537, '2016-06': 674,
+  '2016-07': 624, '2016-08': 573, '2016-09': 608, '2016-10': 702, '2016-11': 742, '2016-12': 963,
+  // 2017 - Bull run
+  '2017-01': 970, '2017-02': 1190, '2017-03': 1080, '2017-04': 1348, '2017-05': 2300, '2017-06': 2450,
+  '2017-07': 2875, '2017-08': 4700, '2017-09': 4338, '2017-10': 6468, '2017-11': 10400, '2017-12': 14156,
+  // 2018 - Bear market
+  '2018-01': 10221, '2018-02': 10900, '2018-03': 6928, '2018-04': 9240, '2018-05': 7495, '2018-06': 6166,
+  '2018-07': 8220, '2018-08': 7010, '2018-09': 6588, '2018-10': 6371, '2018-11': 4017, '2018-12': 3742,
+  // 2019 - Recovery
+  '2019-01': 3457, '2019-02': 3854, '2019-03': 4105, '2019-04': 5350, '2019-05': 8574, '2019-06': 10817,
+  '2019-07': 9590, '2019-08': 9630, '2019-09': 8293, '2019-10': 9199, '2019-11': 7569, '2019-12': 7193,
+  // 2020 - COVID crash and recovery
   '2020-01': 9350, '2020-02': 8599, '2020-03': 6424, '2020-04': 8624, '2020-05': 9455, '2020-06': 9137,
   '2020-07': 11351, '2020-08': 11655, '2020-09': 10778, '2020-10': 13803, '2020-11': 19698, '2020-12': 29001,
+  // 2021 - Bull market peak
   '2021-01': 33114, '2021-02': 45137, '2021-03': 58918, '2021-04': 57750, '2021-05': 37332, '2021-06': 35040,
   '2021-07': 41461, '2021-08': 47166, '2021-09': 43790, '2021-10': 61318, '2021-11': 56905, '2021-12': 46306,
+  // 2022 - Bear market (QT begins)
   '2022-01': 38483, '2022-02': 43193, '2022-03': 45538, '2022-04': 37644, '2022-05': 31792, '2022-06': 19985,
   '2022-07': 23307, '2022-08': 20050, '2022-09': 19432, '2022-10': 20495, '2022-11': 17168, '2022-12': 16547,
+  // 2023 - Recovery
   '2023-01': 23125, '2023-02': 23475, '2023-03': 28478, '2023-04': 29252, '2023-05': 27220, '2023-06': 30477,
   '2023-07': 29236, '2023-08': 26044, '2023-09': 26968, '2023-10': 34502, '2023-11': 37715, '2023-12': 42265,
+  // 2024 - ETF approval rally
   '2024-01': 42584, '2024-02': 51811, '2024-03': 71289, '2024-04': 64115, '2024-05': 67472, '2024-06': 62678,
   '2024-07': 64623, '2024-08': 59017, '2024-09': 63329, '2024-10': 69538, '2024-11': 91052, '2024-12': 97185,
+  // 2025-2026
   '2025-01': 102405, '2025-02': 96200, '2025-03': 82500, '2025-04': 76000, '2025-05': 111000, '2025-06': 108500,
   '2025-07': 123000, '2025-08': 124000, '2025-09': 115800, '2025-10': 126210, '2025-11': 98500, '2025-12': 88445,
   '2026-01': 87800,
 }
 
-// Generate historical net liquidity data (mock)
+// Generate historical net liquidity data from 2015 to present
+// Extended to show full correlation with Bitcoin over multiple market cycles
 export function generateNetLiquidityHistory(): NetLiquidityData[] {
   const data: NetLiquidityData[] = []
-  const startDate = new Date('2020-01-01')
-  const months = 73 // Jan 2020 to Jan 2026
+  const startDate = new Date('2015-01-01')
+  const months = 133 // Jan 2015 to Jan 2026 (11 years + 1 month)
 
   for (let i = 0; i < months; i++) {
     const date = new Date(startDate)
     date.setMonth(date.getMonth() + i)
+    const year = date.getFullYear()
+    const monthIndex = i
 
-    // Simulate Fed balance sheet (peaked at ~$9T in Apr 2022)
+    // Simulate Fed balance sheet based on actual historical periods
+    // 2015-2019: Post-GFC normalization (~$4.5T plateau, brief QT in 2018-2019)
+    // 2020-2022: COVID expansion ($4T -> $9T)
+    // 2022-present: QT ($9T -> $6.8T)
     let fedBalance: number
-    if (i < 3) {
-      fedBalance = 4.2e12 + i * 0.1e12 // Pre-COVID
-    } else if (i < 28) {
-      fedBalance = 4.5e12 + (i - 3) * 0.18e12 // COVID expansion to peak
+    if (year < 2018) {
+      // 2015-2017: Fed balance sheet relatively stable around $4.5T after QE ended
+      fedBalance = 4.5e12 + Math.sin(monthIndex * 0.1) * 0.1e12
+    } else if (year === 2018) {
+      // 2018: QT begins, slight decline
+      fedBalance = 4.5e12 - (monthIndex - 36) * 0.015e12
+    } else if (year === 2019) {
+      // 2019: QT continues then pause/repo crisis in Sept
+      const monthOfYear = date.getMonth()
+      if (monthOfYear < 9) {
+        fedBalance = 4.0e12 - (monthOfYear) * 0.01e12
+      } else {
+        // Repo crisis - Fed starts expanding again
+        fedBalance = 3.9e12 + (monthOfYear - 9) * 0.1e12
+      }
+    } else if (year === 2020) {
+      // 2020: COVID - massive expansion
+      const monthOfYear = date.getMonth()
+      if (monthOfYear < 3) {
+        fedBalance = 4.2e12
+      } else {
+        // March 2020 onwards: QE infinity
+        fedBalance = 4.2e12 + (monthOfYear - 2) * 0.5e12
+      }
+    } else if (year === 2021) {
+      // 2021: Continued expansion, peak at end of year
+      fedBalance = 7.5e12 + (date.getMonth()) * 0.12e12
+    } else if (year === 2022) {
+      // 2022: Peak in April, then QT begins June
+      const monthOfYear = date.getMonth()
+      if (monthOfYear < 4) {
+        fedBalance = 8.9e12 + monthOfYear * 0.025e12
+      } else {
+        // QT phase
+        fedBalance = 9.0e12 - (monthOfYear - 4) * 0.08e12
+      }
+    } else if (year === 2023) {
+      // 2023: Continued QT
+      fedBalance = 8.4e12 - (date.getMonth()) * 0.05e12
+    } else if (year === 2024) {
+      // 2024: QT continues but slowing
+      fedBalance = 7.8e12 - (date.getMonth()) * 0.04e12
     } else {
-      fedBalance = 9e12 - (i - 28) * 0.05e12 // QT phase
+      // 2025-2026
+      fedBalance = 7.3e12 - (date.getMonth()) * 0.03e12
     }
 
     // Simulate TGA (volatile around debt ceiling events)
-    const tgaBase = 500e9
-    const tgaVariation = Math.sin(i * 0.3) * 200e9
-    const tga = Math.max(100e9, tgaBase + tgaVariation)
-
-    // Simulate RRP (peaked at ~$2.5T, now near zero)
-    let rrp: number
-    if (i < 18) {
-      rrp = Math.max(0, i * 50e9) // Building up
-    } else if (i < 48) {
-      rrp = Math.min(2.5e12, 900e9 + (i - 18) * 53e9) // Peak period
+    let tga: number
+    if (year < 2019) {
+      // Pre-2019: TGA relatively stable
+      tga = 200e9 + Math.sin(monthIndex * 0.4) * 100e9
+    } else if (year === 2019) {
+      // 2019: Debt ceiling dynamics
+      tga = 150e9 + Math.abs(Math.sin(monthIndex * 0.3)) * 200e9
+    } else if (year === 2020) {
+      // 2020: COVID - TGA swings wildly
+      const monthOfYear = date.getMonth()
+      if (monthOfYear < 6) {
+        tga = 400e9 + monthOfYear * 100e9
+      } else {
+        tga = 1600e9 - (monthOfYear - 6) * 150e9
+      }
+    } else if (year === 2021) {
+      // 2021: TGA drawdown then rebuild
+      const monthOfYear = date.getMonth()
+      if (monthOfYear < 6) {
+        tga = 900e9 - monthOfYear * 120e9
+      } else {
+        tga = 200e9 + (monthOfYear - 6) * 80e9
+      }
     } else {
-      rrp = Math.max(100e9, 2.5e12 - (i - 48) * 96e9) // Declining
+      // 2022+: Normal oscillation
+      const tgaBase = 500e9
+      const tgaVariation = Math.sin(monthIndex * 0.3) * 200e9
+      tga = Math.max(100e9, tgaBase + tgaVariation)
     }
+    tga = Math.max(50e9, tga)
+
+    // Simulate RRP (didn't exist meaningfully until 2021)
+    let rrp: number
+    if (year < 2021) {
+      // Pre-2021: RRP was minimal
+      rrp = Math.max(0, Math.random() * 50e9)
+    } else if (year === 2021) {
+      // 2021: RRP starts building up massively
+      const monthOfYear = date.getMonth()
+      rrp = Math.min(1.5e12, monthOfYear * 120e9)
+    } else if (year === 2022) {
+      // 2022: RRP peaks at $2.5T
+      const monthOfYear = date.getMonth()
+      if (monthOfYear < 6) {
+        rrp = 1.5e12 + monthOfYear * 150e9
+      } else {
+        rrp = 2.4e12 + Math.sin(monthOfYear * 0.5) * 0.1e12
+      }
+    } else if (year === 2023) {
+      // 2023: RRP starts declining
+      const monthOfYear = date.getMonth()
+      rrp = 2.3e12 - monthOfYear * 100e9
+    } else if (year === 2024) {
+      // 2024: RRP continues declining rapidly
+      const monthOfYear = date.getMonth()
+      rrp = 1.1e12 - monthOfYear * 80e9
+    } else {
+      // 2025-2026: Near zero
+      rrp = Math.max(50e9, 200e9 - date.getMonth() * 20e9)
+    }
+    rrp = Math.max(0, rrp)
 
     // Get BTC price for this month
     const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
     const btcPrice = btcPriceHistory[dateKey]
 
     // Get BTC price from 3 months (13 weeks) later to show the lag effect
-    // This demonstrates that liquidity LEADS BTC price
     const laggedDate = new Date(date)
     laggedDate.setMonth(laggedDate.getMonth() + 3)
     const laggedDateKey = `${laggedDate.getFullYear()}-${String(laggedDate.getMonth() + 1).padStart(2, '0')}`
