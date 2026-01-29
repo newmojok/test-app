@@ -12,7 +12,7 @@ import {
   ReferenceLine,
   ReferenceDot,
 } from 'recharts'
-import { formatDateShort, formatPercent } from '@/lib/utils'
+import { formatDateQuarterly, formatDateShort, formatPercent, isQuarterStart } from '@/lib/utils'
 import type { M2CountryData, RecessionPeriod } from '@/types'
 import { mockBitcoinData, mockEthereumData } from '@/data/mockData'
 
@@ -232,10 +232,12 @@ export function M2Chart({
           <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.3} />
           <XAxis
             dataKey="date"
-            tickFormatter={formatDateShort}
+            tickFormatter={formatDateQuarterly}
             stroke="var(--color-muted-foreground)"
             tick={{ fontSize: 11 }}
             tickMargin={10}
+            ticks={chartData.filter((d) => isQuarterStart(String(d.date))).map((d) => d.date)}
+            interval={0}
           />
           <YAxis
             yAxisId="left"
