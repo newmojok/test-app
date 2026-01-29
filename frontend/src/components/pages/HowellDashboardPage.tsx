@@ -336,21 +336,12 @@ export function HowellDashboardPage() {
                   dataKey="date"
                   tickFormatter={(date) => {
                     const d = new Date(date)
-                    const month = d.getMonth()
-                    const year = d.getFullYear()
-                    // Show "Q1 'YY" format for quarters
-                    if (month === 0) return `Q1 '${String(year).slice(2)}`
-                    if (month === 3) return `Q2`
-                    if (month === 6) return `Q3`
-                    if (month === 9) return `Q4`
-                    return ''
+                    // Show year only for January (cleaner with 11 years of data)
+                    return String(d.getFullYear())
                   }}
                   tick={{ fontSize: 11 }}
                   ticks={netLiquidityData
-                    .filter((d) => {
-                      const month = new Date(d.date).getMonth()
-                      return month === 0 || month === 3 || month === 6 || month === 9
-                    })
+                    .filter((d) => new Date(d.date).getMonth() === 0) // January only
                     .map((d) => d.date)}
                   interval={0}
                 />
