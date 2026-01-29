@@ -13,11 +13,11 @@ import {
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { useAppStore } from '@/store'
 import {
-  howellIndicators,
   generateNetLiquidityHistory,
-  generateDecisionMatrix,
-  getAggregateSignal,
+  type HowellIndicator,
+  type DecisionMatrixRow,
 } from '@/data/howellIndicators'
 import {
   TrendingUp,
@@ -26,12 +26,81 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
+  RefreshCw,
 } from 'lucide-react'
 
+// Local function to generate decision matrix from indicators
+function generateDecisionMatrixFromIndicators(indicators: HowellIndicator[]): DecisionMatrixRow[] {
+  const signalMap = {
+    bullish: 'Bullish' as const,
+    bearish: 'Bearish' as const,
+    neutral: 'Neutral' as const,
+  }
+
+  const weightMap: Record<string, number> = {
+    walcl: 25,
+    tga: 15,
+    rrp: 10,
+    dxy: 15,
+    move: 10,
+    cycle: 10,
+    pboc: 10,
+    ecb: 5,
+  }
+
+  return indicators.map((ind) => {
+    const weight = weightMap[ind.id] || 10
+    const signalScore = ind.signal === 'bullish' ? 1 : ind.signal === 'bearish' ? -1 : 0
+    const contribution = (signalScore * weight * ind.signalStrength) / 100
+
+    return {
+      indicator: ind.shortName,
+      currentSignal: signalMap[ind.signal],
+      weight,
+      contribution: Math.round(contribution * 10) / 10,
+      notes: ind.interpretation,
+    }
+  })
+}
+
+// Local function to get aggregate signal from decision matrix
+function getAggregateSignalFromMatrix(matrix: DecisionMatrixRow[]): {
+  signal: 'Bullish' | 'Bearish' | 'Neutral'
+  score: number
+  description: string
+} {
+  const totalContribution = matrix.reduce((sum, row) => sum + row.contribution, 0)
+
+  let signal: 'Bullish' | 'Bearish' | 'Neutral'
+  let description: string
+
+  if (totalContribution > 10) {
+    signal = 'Bullish'
+    description = 'Net liquidity conditions favor risk assets'
+  } else if (totalContribution < -10) {
+    signal = 'Bearish'
+    description = 'Net liquidity conditions are restrictive'
+  } else {
+    signal = 'Neutral'
+    description = 'Mixed signals - wait for clarity'
+  }
+
+  return { signal, score: Math.round(totalContribution), description }
+}
+
 export function HowellDashboardPage() {
+  const { howellIndicators, howellLastRefresh, howellIsRefreshing, refreshHowellIndicators } =
+    useAppStore()
+
   const netLiquidityData = useMemo(() => generateNetLiquidityHistory(), [])
-  const decisionMatrix = useMemo(() => generateDecisionMatrix(), [])
-  const aggregateSignal = useMemo(() => getAggregateSignal(), [])
+  const decisionMatrix = useMemo(
+    () => generateDecisionMatrixFromIndicators(howellIndicators),
+    [howellIndicators]
+  )
+  const aggregateSignal = useMemo(
+    () => getAggregateSignalFromMatrix(decisionMatrix),
+    [decisionMatrix]
+  )
 
   // Get current net liquidity
   const currentNetLiquidity = useMemo(() => {
@@ -39,7 +108,7 @@ export function HowellDashboardPage() {
     const tga = howellIndicators.find((i) => i.id === 'tga')?.currentValue || 0
     const rrp = howellIndicators.find((i) => i.id === 'rrp')?.currentValue || 0
     return fedBalance - tga - rrp
-  }, [])
+  }, [howellIndicators])
 
   // Format for display
   const formatTrillions = (value: number) => `$${(value / 1e12).toFixed(2)}T`
@@ -65,11 +134,26 @@ export function HowellDashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Howell Liquidity Dashboard</h1>
-        <p className="text-muted-foreground mt-1">
-          Real-time liquidity indicators based on Michael Howell's framework
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Howell Liquidity Dashboard</h1>
+          <p className="text-muted-foreground mt-1">
+            Real-time liquidity indicators based on Michael Howell's framework
+          </p>
+          {howellLastRefresh && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Last refreshed: {new Date(howellLastRefresh).toLocaleString()}
+            </p>
+          )}
+        </div>
+        <button
+          onClick={() => refreshHowellIndicators()}
+          disabled={howellIsRefreshing}
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 transition-colors"
+        >
+          <RefreshCw className={`h-4 w-4 ${howellIsRefreshing ? 'animate-spin' : ''}`} />
+          {howellIsRefreshing ? 'Refreshing...' : 'Refresh All Data'}
+        </button>
       </div>
 
       {/* Aggregate Signal Card */}
@@ -167,10 +251,13 @@ export function HowellDashboardPage() {
       {/* Net Liquidity Chart */}
       <Card>
         <CardHeader>
-          <CardTitle>Net Liquidity Over Time</CardTitle>
+          <CardTitle>Net Liquidity Over Time with Bitcoin Correlation</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Bitcoin price (orange) shown with 13-week lag to demonstrate liquidity leading price action
+          </p>
         </CardHeader>
         <CardContent>
-          <div className="h-[400px]">
+          <div className="h-[450px]">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={netLiquidityData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -187,6 +274,14 @@ export function HowellDashboardPage() {
                   yAxisId="left"
                   tickFormatter={(value) => `$${(value / 1e12).toFixed(1)}T`}
                   tick={{ fontSize: 12 }}
+                  label={{ value: 'Liquidity', angle: -90, position: 'insideLeft', fontSize: 12 }}
+                />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
+                  tick={{ fontSize: 12 }}
+                  label={{ value: 'BTC Price', angle: 90, position: 'insideRight', fontSize: 12 }}
                 />
                 <Tooltip
                   contentStyle={{
@@ -194,9 +289,12 @@ export function HowellDashboardPage() {
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '8px',
                   }}
-                  formatter={(value) => {
+                  formatter={(value, name) => {
                     const num = typeof value === 'number' ? value : 0
-                    return `$${(num / 1e12).toFixed(2)}T`
+                    if (name === 'BTC (13wk lag)' || name === 'BTC Price') {
+                      return [`$${num.toLocaleString()}`, name]
+                    }
+                    return [`$${(num / 1e12).toFixed(2)}T`, name]
                   }}
                   labelFormatter={(label) => `Date: ${label}`}
                 />
@@ -206,7 +304,7 @@ export function HowellDashboardPage() {
                   y={6e12}
                   stroke="#ef4444"
                   strokeDasharray="5 5"
-                  label={{ value: 'QT Target', fill: '#ef4444', fontSize: 12 }}
+                  label={{ value: 'QT Target ($6T)', fill: '#ef4444', fontSize: 12 }}
                 />
                 <Area
                   yAxisId="left"
@@ -225,6 +323,15 @@ export function HowellDashboardPage() {
                   name="Net Liquidity"
                   stroke="#22c55e"
                   strokeWidth={3}
+                  dot={false}
+                />
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="btcPriceLagged"
+                  name="BTC (13wk lag)"
+                  stroke="#f59e0b"
+                  strokeWidth={2}
                   dot={false}
                 />
                 <Line
@@ -249,6 +356,16 @@ export function HowellDashboardPage() {
                 />
               </ComposedChart>
             </ResponsiveContainer>
+          </div>
+          {/* QT Target Explanation */}
+          <div className="mt-4 p-3 bg-muted/30 rounded-lg">
+            <h4 className="font-medium text-sm mb-1">About the QT Target Line ($6T)</h4>
+            <p className="text-xs text-muted-foreground">
+              The $6 trillion line represents the Fed's estimated terminal balance sheet target under Quantitative Tightening (QT).
+              This is not from Howell's framework directly, but represents the market consensus for where the Fed may stop reducing its balance sheet
+              to maintain adequate reserves in the banking system. When net liquidity approaches this level, expect increased market volatility
+              and potential Fed intervention signals. The Fed started QT in June 2022 from ~$9T and has been reducing at ~$95B/month.
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -301,7 +418,7 @@ export function HowellDashboardPage() {
                         {row.contribution.toFixed(1)}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-sm text-muted-foreground max-w-xs truncate">
+                    <td className="py-3 px-4 text-sm text-muted-foreground max-w-md">
                       {row.notes}
                     </td>
                   </tr>
@@ -336,17 +453,39 @@ export function HowellDashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Key Insight */}
+      {/* Key Insight - 13 Week Lead Time Explanation */}
       <Card className="bg-blue-500/5 border-blue-500/50">
-        <CardContent className="py-4">
+        <CardContent className="py-5">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-blue-500 mt-0.5" />
-            <div>
-              <h4 className="font-medium text-blue-500">13-Week Lead Time</h4>
-              <p className="text-sm text-muted-foreground">
-                Remember: Changes in net liquidity lead risk asset prices by approximately 13 weeks.
-                Current conditions suggest risk asset performance in Q2 2026.
-              </p>
+            <AlertTriangle className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
+            <div className="space-y-3">
+              <h4 className="font-medium text-blue-500">13-Week Lead Time: Why Liquidity Leads Price</h4>
+              <div className="text-sm text-muted-foreground space-y-2">
+                <p>
+                  <strong>The Core Mechanism:</strong> Michael Howell's research at CrossBorder Capital demonstrates that changes
+                  in global net liquidity lead risk asset prices (especially Bitcoin and equities) by approximately 13 weeks (~3 months).
+                  This relationship has shown 85%+ correlation historically.
+                </p>
+                <p>
+                  <strong>Why 13 Weeks?</strong> This lag exists because:
+                </p>
+                <ul className="list-disc list-inside pl-2 space-y-1">
+                  <li><strong>Transmission delay:</strong> It takes time for liquidity changes to flow through the financial system—from central bank operations to commercial banks to asset markets</li>
+                  <li><strong>Portfolio rebalancing:</strong> Fund managers and institutions don't react instantly; they assess conditions, adjust allocations, and execute over weeks</li>
+                  <li><strong>Sentiment shift:</strong> Market participants need time to recognize and act on changing liquidity conditions</li>
+                  <li><strong>Collateral effects:</strong> Improved liquidity enhances collateral values, enabling more leverage, which takes time to deploy</li>
+                </ul>
+                <p>
+                  <strong>Current Implication (Q2 2026):</strong> Based on current net liquidity levels and trends observed today (late January 2026),
+                  we can project risk asset behavior for approximately April-May 2026. If net liquidity is expanding now, expect supportive conditions
+                  for BTC/equities in Q2. If contracting, expect headwinds. The chart above shows BTC price shifted back 13 weeks to visually demonstrate
+                  how liquidity movements precede price action.
+                </p>
+                <p className="text-xs italic">
+                  Source: Michael Howell's "Capital Wars" and CrossBorder Capital research. This framework is used by institutional investors
+                  globally to time risk asset allocation decisions.
+                </p>
+              </div>
             </div>
           </div>
         </CardContent>

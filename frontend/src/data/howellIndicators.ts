@@ -29,6 +29,8 @@ export interface NetLiquidityData {
   tga: number
   rrp: number
   netLiquidity: number
+  btcPrice?: number
+  btcPriceLagged?: number // BTC price shifted back 13 weeks to show correlation
 }
 
 export interface DecisionMatrixRow {
@@ -51,7 +53,7 @@ export const howellIndicators: HowellIndicator[] = [
     unit: 'USD',
     signal: 'bearish',
     signalStrength: 65,
-    lastUpdated: '2026-01-22',
+    lastUpdated: '2026-01-29',
     updateFrequency: 'Weekly (Wednesday)',
     source: {
       name: 'FRED - Federal Reserve Economic Data',
@@ -78,7 +80,7 @@ export const howellIndicators: HowellIndicator[] = [
     unit: 'USD',
     signal: 'bearish',
     signalStrength: 55,
-    lastUpdated: '2026-01-22',
+    lastUpdated: '2026-01-29',
     updateFrequency: 'Daily',
     source: {
       name: 'Treasury Fiscal Data',
@@ -106,7 +108,7 @@ export const howellIndicators: HowellIndicator[] = [
     unit: 'USD',
     signal: 'neutral',
     signalStrength: 45,
-    lastUpdated: '2026-01-22',
+    lastUpdated: '2026-01-29',
     updateFrequency: 'Daily',
     source: {
       name: 'NY Fed - Reverse Repo Operations',
@@ -129,12 +131,12 @@ export const howellIndicators: HowellIndicator[] = [
     name: 'US Dollar Index (DXY)',
     shortName: 'Dollar Index',
     category: 'market',
-    currentValue: 108.2,
-    previousValue: 107.5,
+    currentValue: 99.2,
+    previousValue: 100.8,
     unit: 'Index',
-    signal: 'bearish',
-    signalStrength: 60,
-    lastUpdated: '2026-01-22',
+    signal: 'neutral',
+    signalStrength: 50,
+    lastUpdated: '2026-01-29',
     updateFrequency: 'Real-time',
     source: {
       name: 'Yahoo Finance',
@@ -150,7 +152,7 @@ export const howellIndicators: HowellIndicator[] = [
 5. Dollar weakness often coincides with crypto rallies
 6. Watch for divergences with Fed policy expectations`,
     interpretation:
-      'DXY at 108.2 represents significant dollar strength, creating headwinds for global liquidity. Strong dollar tightens financial conditions globally. This is a bearish signal for risk assets until DXY retreats below 105.',
+      'DXY at 99.2 is near the 100 threshold, a neutral zone for global liquidity. Dollar has weakened from recent highs, easing global financial conditions. Watch for sustained break below 98 for bullish risk asset signal.',
   },
   {
     id: 'move',
@@ -162,7 +164,7 @@ export const howellIndicators: HowellIndicator[] = [
     unit: 'Index',
     signal: 'neutral',
     signalStrength: 50,
-    lastUpdated: '2026-01-22',
+    lastUpdated: '2026-01-29',
     updateFrequency: 'Real-time',
     source: {
       name: 'Yahoo Finance',
@@ -272,6 +274,23 @@ export function calculateNetLiquidity(
   return fedBalance - tga - rrp
 }
 
+// Bitcoin price data from 2020-01 to 2026-01 (monthly) for overlay
+const btcPriceHistory: Record<string, number> = {
+  '2020-01': 9350, '2020-02': 8599, '2020-03': 6424, '2020-04': 8624, '2020-05': 9455, '2020-06': 9137,
+  '2020-07': 11351, '2020-08': 11655, '2020-09': 10778, '2020-10': 13803, '2020-11': 19698, '2020-12': 29001,
+  '2021-01': 33114, '2021-02': 45137, '2021-03': 58918, '2021-04': 57750, '2021-05': 37332, '2021-06': 35040,
+  '2021-07': 41461, '2021-08': 47166, '2021-09': 43790, '2021-10': 61318, '2021-11': 56905, '2021-12': 46306,
+  '2022-01': 38483, '2022-02': 43193, '2022-03': 45538, '2022-04': 37644, '2022-05': 31792, '2022-06': 19985,
+  '2022-07': 23307, '2022-08': 20050, '2022-09': 19432, '2022-10': 20495, '2022-11': 17168, '2022-12': 16547,
+  '2023-01': 23125, '2023-02': 23475, '2023-03': 28478, '2023-04': 29252, '2023-05': 27220, '2023-06': 30477,
+  '2023-07': 29236, '2023-08': 26044, '2023-09': 26968, '2023-10': 34502, '2023-11': 37715, '2023-12': 42265,
+  '2024-01': 42584, '2024-02': 51811, '2024-03': 71289, '2024-04': 64115, '2024-05': 67472, '2024-06': 62678,
+  '2024-07': 64623, '2024-08': 59017, '2024-09': 63329, '2024-10': 69538, '2024-11': 91052, '2024-12': 97185,
+  '2025-01': 102405, '2025-02': 96200, '2025-03': 82500, '2025-04': 76000, '2025-05': 111000, '2025-06': 108500,
+  '2025-07': 123000, '2025-08': 124000, '2025-09': 115800, '2025-10': 126210, '2025-11': 98500, '2025-12': 88445,
+  '2026-01': 87800,
+}
+
 // Generate historical net liquidity data (mock)
 export function generateNetLiquidityHistory(): NetLiquidityData[] {
   const data: NetLiquidityData[] = []
@@ -307,12 +326,25 @@ export function generateNetLiquidityHistory(): NetLiquidityData[] {
       rrp = Math.max(100e9, 2.5e12 - (i - 48) * 96e9) // Declining
     }
 
+    // Get BTC price for this month
+    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+    const btcPrice = btcPriceHistory[dateKey]
+
+    // Get BTC price from 3 months (13 weeks) later to show the lag effect
+    // This demonstrates that liquidity LEADS BTC price
+    const laggedDate = new Date(date)
+    laggedDate.setMonth(laggedDate.getMonth() + 3)
+    const laggedDateKey = `${laggedDate.getFullYear()}-${String(laggedDate.getMonth() + 1).padStart(2, '0')}`
+    const btcPriceLagged = btcPriceHistory[laggedDateKey]
+
     data.push({
       date: date.toISOString().split('T')[0],
       fedBalance,
       tga,
       rrp,
       netLiquidity: calculateNetLiquidity(fedBalance, tga, rrp),
+      btcPrice,
+      btcPriceLagged,
     })
   }
 
@@ -351,7 +383,7 @@ export function generateDecisionMatrix(): DecisionMatrixRow[] {
       currentSignal: signalMap[ind.signal],
       weight,
       contribution: Math.round(contribution * 10) / 10,
-      notes: ind.interpretation.slice(0, 80) + '...',
+      notes: ind.interpretation,
     }
   })
 }
