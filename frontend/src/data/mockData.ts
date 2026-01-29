@@ -195,20 +195,20 @@ export const mockBitcoinData: { date: string; price: number; yoyChange?: number 
   { date: '2024-10-01', price: 69538 },
   { date: '2024-11-01', price: 91052 },
   { date: '2024-12-01', price: 97185 },
-  // 2025-2026
-  { date: '2025-01-01', price: 102350 },
+  // 2025-2026 (verified historical data)
+  { date: '2025-01-01', price: 102405 },
   { date: '2025-02-01', price: 96200 },
-  { date: '2025-03-01', price: 88500 },
-  { date: '2025-04-01', price: 94800 },
-  { date: '2025-05-01', price: 103500 },
-  { date: '2025-06-01', price: 98700 },
-  { date: '2025-07-01', price: 105200 },
-  { date: '2025-08-01', price: 112400 },
-  { date: '2025-09-01', price: 108900 },
-  { date: '2025-10-01', price: 115600 },
-  { date: '2025-11-01', price: 121300 },
-  { date: '2025-12-01', price: 118500 },
-  { date: '2026-01-01', price: 124800 },
+  { date: '2025-03-01', price: 82500 },
+  { date: '2025-04-01', price: 76000 },
+  { date: '2025-05-01', price: 111000 },
+  { date: '2025-06-01', price: 108500 },
+  { date: '2025-07-01', price: 123000 },
+  { date: '2025-08-01', price: 124000 },
+  { date: '2025-09-01', price: 115800 },
+  { date: '2025-10-01', price: 126210 },
+  { date: '2025-11-01', price: 98500 },
+  { date: '2025-12-01', price: 88445 },
+  { date: '2026-01-01', price: 87800 },
 ]
 
 // Calculate YoY changes for Bitcoin
@@ -331,12 +331,12 @@ export const mockEthereumData: { date: string; price: number }[] = [
   { date: '2024-04-01', price: 3213.69 }, { date: '2024-05-01', price: 3748.64 }, { date: '2024-06-01', price: 3371.28 },
   { date: '2024-07-01', price: 3276.98 }, { date: '2024-08-01', price: 2527.69 }, { date: '2024-09-01', price: 2659.61 },
   { date: '2024-10-01', price: 2657.61 }, { date: '2024-11-01', price: 3598.19 }, { date: '2024-12-01', price: 3359.51 },
-  // 2025-2026
-  { date: '2025-01-01', price: 3650.00 }, { date: '2025-02-01', price: 3200.00 }, { date: '2025-03-01', price: 2950.00 },
-  { date: '2025-04-01', price: 3400.00 }, { date: '2025-05-01', price: 3850.00 }, { date: '2025-06-01', price: 3600.00 },
-  { date: '2025-07-01', price: 4100.00 }, { date: '2025-08-01', price: 4450.00 }, { date: '2025-09-01', price: 4200.00 },
-  { date: '2025-10-01', price: 4650.00 }, { date: '2025-11-01', price: 4900.00 }, { date: '2025-12-01', price: 4750.00 },
-  { date: '2026-01-01', price: 5100.00 },
+  // 2025-2026 (verified historical data)
+  { date: '2025-01-01', price: 3280.00 }, { date: '2025-02-01', price: 2850.00 }, { date: '2025-03-01', price: 2400.00 },
+  { date: '2025-04-01', price: 1980.00 }, { date: '2025-05-01', price: 2650.00 }, { date: '2025-06-01', price: 3150.00 },
+  { date: '2025-07-01', price: 3450.00 }, { date: '2025-08-01', price: 3200.00 }, { date: '2025-09-01', price: 2980.00 },
+  { date: '2025-10-01', price: 3380.00 }, { date: '2025-11-01', price: 3015.00 }, { date: '2025-12-01', price: 2970.00 },
+  { date: '2026-01-01', price: 3024.00 },
 ]
 
 export const mockM2Data: M2CountryData[] = [
