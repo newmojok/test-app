@@ -409,7 +409,7 @@ export function M2Chart({
 
       {(showBitcoin || showEthereum) && (
         <div className="mt-2 text-xs text-muted-foreground text-center">
-          💡 Tip: M2 RoC typically leads crypto by 3-6 months. Adjust lag to see correlation.
+          💡 Tip: Per Howell's research, M2 leads crypto by ~10-12 months. Adjust lag to see correlation.
         </div>
       )}
     </div>

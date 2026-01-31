@@ -14,11 +14,11 @@ interface CorrelationsPageProps {
 function adjustCorrelations(baseMatrix: number[][], timePeriod: number, lagMonths: number): number[][] {
   // Adjust correlations based on settings
   // Longer time periods = slightly lower correlations (more noise)
-  // Optimal lag (around 6mo) = higher correlations for M2/BTC
+  // Per Howell: M2 leads crypto by ~10-12mo, net liquidity by ~13 weeks
   const timeAdjust = timePeriod === 30 ? 0.95 : timePeriod === 90 ? 1.0 : timePeriod === 180 ? 0.97 : 0.93
 
-  // BTC-M2 correlation peaks at 6mo lag
-  const lagMultipliers: Record<number, number> = { 0: 0.75, 3: 0.90, 6: 1.0, 9: 0.92, 12: 0.80 }
+  // BTC-M2 correlation peaks around 9-12mo lag (per Howell research)
+  const lagMultipliers: Record<number, number> = { 0: 0.75, 3: 0.85, 6: 0.92, 9: 1.0, 12: 0.98 }
   const lagAdjust = lagMultipliers[lagMonths] || 1.0
 
   return baseMatrix.map((row, i) =>
@@ -37,7 +37,7 @@ function adjustCorrelations(baseMatrix: number[][], timePeriod: number, lagMonth
 }
 
 export function CorrelationsPage({ data, isLoading }: CorrelationsPageProps) {
-  const [lagPeriod, setLagPeriod] = useState(6)
+  const [lagPeriod, setLagPeriod] = useState(9) // Default to 9mo (per Howell: M2 leads crypto by ~10-12mo)
   const [timePeriod, setTimePeriod] = useState('90')
 
   // Adjust correlations based on settings
@@ -197,8 +197,8 @@ export function CorrelationsPage({ data, isLoading }: CorrelationsPageProps) {
             </p>
             <p className="pt-2 border-t border-border">
               <strong>Note:</strong> Correlations with lag show how liquidity metrics predict
-              future asset prices. A 6-month lag means today's liquidity reading correlates with
-              asset prices 6 months from now. M2-BTC correlation peaks at 6-month lag.
+              future asset prices. Per Howell's research, M2-BTC correlation peaks at ~10-12 month lag,
+              while net liquidity leads risk assets by ~13 weeks.
             </p>
           </CardContent>
         </Card>

@@ -109,8 +109,8 @@ export function LiquidityPage({ m2Data, isLoading }: LiquidityPageProps) {
               in M2 money supply over a rolling 6-month period.
             </p>
             <p>
-              Per Michael Howell's research, this metric leads global asset prices (Bitcoin, equities)
-              by 3-6 months. A cross above +5% typically signals risk-on conditions.
+              Per Michael Howell's research, global M2 leads crypto prices by approximately 10-12 months,
+              while net liquidity leads by ~13 weeks. A cross above +5% typically signals risk-on conditions.
             </p>
             <p>
               <strong>Z-Score</strong> shows how current readings compare to the 10-year historical
