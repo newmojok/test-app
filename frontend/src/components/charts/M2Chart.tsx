@@ -12,7 +12,7 @@ import {
   ReferenceLine,
   ReferenceDot,
 } from 'recharts'
-import { formatDateShort, formatPercent } from '@/lib/utils'
+import { formatDateQuarterly, formatDateShort, formatPercent, isQuarterStart } from '@/lib/utils'
 import type { M2CountryData, RecessionPeriod } from '@/types'
 import { mockBitcoinData, mockEthereumData } from '@/data/mockData'
 
@@ -58,9 +58,10 @@ export function M2Chart({
 }: M2ChartProps) {
   const [showBitcoin, setShowBitcoin] = useState(true)
   const [showEthereum, setShowEthereum] = useState(false)
-  const [cryptoLag, setCryptoLag] = useState(3) // Default 3 month lag
+  const [cryptoLag, setCryptoLag] = useState(10) // Default 10 month lag (per Howell's M2 research)
   const [cryptoViewMode, setCryptoViewMode] = useState<'price' | 'yoy'>('yoy')
   const [showSignals, setShowSignals] = useState(true)
+  const [useLogScale, setUseLogScale] = useState(false) // Log scale for price axis
 
   const chartData = useMemo(() => {
     if (!data || data.length === 0) return []
@@ -83,6 +84,8 @@ export function M2Chart({
     })
 
     // Add Bitcoin data with lag adjustment
+    // M2 LEADS crypto, so we look FORWARD in time for BTC data
+    // e.g., with 10mo lag, Jan 2024 M2 predicts Nov 2024 BTC
     if (showBitcoin) {
       const btcByMonth = new Map<string, { price: number; yoyChange?: number }>()
       mockBitcoinData.forEach((btcPoint) => {
@@ -92,7 +95,7 @@ export function M2Chart({
 
       dateMap.forEach((entry, dateStr) => {
         const entryDate = new Date(dateStr)
-        entryDate.setMonth(entryDate.getMonth() - cryptoLag)
+        entryDate.setMonth(entryDate.getMonth() + cryptoLag) // ADD lag (look forward)
         const btcKey = entryDate.toISOString().substring(0, 7)
         const btcData = btcByMonth.get(btcKey)
 
@@ -107,6 +110,7 @@ export function M2Chart({
     }
 
     // Add Ethereum data with lag adjustment
+    // M2 LEADS crypto, so we look FORWARD in time for ETH data
     if (showEthereum) {
       const ethByMonth = new Map<string, number>()
       mockEthereumData.forEach((ethPoint) => {
@@ -118,7 +122,7 @@ export function M2Chart({
 
       dateMap.forEach((entry, dateStr) => {
         const entryDate = new Date(dateStr)
-        entryDate.setMonth(entryDate.getMonth() - cryptoLag)
+        entryDate.setMonth(entryDate.getMonth() + cryptoLag) // ADD lag (look forward)
         const ethKey = entryDate.toISOString().substring(0, 7)
         const ethPrice = ethByMonth.get(ethKey)
 
@@ -213,16 +217,29 @@ export function M2Chart({
                 value={cryptoLag}
                 onChange={(e) => setCryptoLag(parseInt(e.target.value))}
                 className="px-2 py-1 text-xs rounded-md bg-muted border border-border"
+                title="How far ahead M2 predicts crypto prices (Howell: 10-12mo)"
               >
-                <option value="-12">-12mo lead</option>
-                <option value="-6">-6mo lead</option>
-                <option value="-3">-3mo lead</option>
-                <option value="0">No lag</option>
-                <option value="3">+3mo lag</option>
-                <option value="6">+6mo lag</option>
-                <option value="9">+9mo lag</option>
-                <option value="12">+12mo lag</option>
+                <option value="0">No shift</option>
+                <option value="6">M2 leads 6mo</option>
+                <option value="9">M2 leads 9mo</option>
+                <option value="10">M2 leads 10mo ★</option>
+                <option value="12">M2 leads 12mo</option>
+                <option value="15">M2 leads 15mo</option>
+                <option value="18">M2 leads 18mo</option>
               </select>
+              {cryptoViewMode === 'price' && (
+                <button
+                  onClick={() => setUseLogScale(!useLogScale)}
+                  className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                    useLogScale
+                      ? 'bg-green-500 text-white'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                  title="Toggle logarithmic scale for price"
+                >
+                  Log
+                </button>
+              )}
             </>
           )}
         </div>
@@ -232,10 +249,12 @@ export function M2Chart({
           <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.3} />
           <XAxis
             dataKey="date"
-            tickFormatter={formatDateShort}
+            tickFormatter={formatDateQuarterly}
             stroke="var(--color-muted-foreground)"
             tick={{ fontSize: 11 }}
             tickMargin={10}
+            ticks={chartData.filter((d) => isQuarterStart(String(d.date))).map((d) => d.date)}
+            interval={0}
           />
           <YAxis
             yAxisId="left"
@@ -256,10 +275,12 @@ export function M2Chart({
                 cryptoViewMode === 'yoy' ? `${(value * 10).toFixed(0)}%` : `$${value}K`
               }
               tickMargin={10}
+              scale={cryptoViewMode === 'price' && useLogScale ? 'log' : 'auto'}
+              domain={cryptoViewMode === 'price' && useLogScale ? ['auto', 'auto'] : undefined}
               label={{
                 value: cryptoViewMode === 'yoy'
-                  ? `Crypto YoY% (${cryptoLag < 0 ? Math.abs(cryptoLag) + 'mo lead' : cryptoLag === 0 ? 'no shift' : cryptoLag + 'mo lag'})`
-                  : `Crypto Price (${cryptoLag < 0 ? Math.abs(cryptoLag) + 'mo lead' : cryptoLag === 0 ? 'no shift' : cryptoLag + 'mo lag'})`,
+                  ? `Crypto YoY% (M2 leads ${cryptoLag}mo)`
+                  : `Crypto Price${useLogScale ? ' (Log)' : ''} (M2 leads ${cryptoLag}mo)`,
                 angle: 90,
                 position: 'insideRight',
                 style: { fill: '#f59e0b', fontSize: 10 },

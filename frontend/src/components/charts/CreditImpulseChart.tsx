@@ -11,7 +11,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts'
-import { formatDateShort } from '@/lib/utils'
+import { formatDateQuarterly, formatDateShort, isQuarterStart } from '@/lib/utils'
 import type { CreditImpulseData } from '@/types'
 
 interface CreditImpulseChartProps {
@@ -92,9 +92,11 @@ export function CreditImpulseChart({
         <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.3} />
         <XAxis
           dataKey="date"
-          tickFormatter={formatDateShort}
+          tickFormatter={formatDateQuarterly}
           stroke="var(--color-muted-foreground)"
           tick={{ fontSize: 12 }}
+          ticks={chartData.filter((d) => isQuarterStart(d.date)).map((d) => d.date)}
+          interval={0}
         />
         <YAxis
           yAxisId="left"

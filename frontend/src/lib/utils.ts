@@ -41,6 +41,34 @@ export function formatDateShort(date: Date | string): string {
   }).format(new Date(date))
 }
 
+// Format date as quarterly label (Q1 '24, Q2, Q3, Q4, Q1 '25, etc.)
+export function formatDateQuarterly(date: Date | string): string {
+  const d = new Date(date)
+  const month = d.getMonth()
+  const year = d.getFullYear()
+  const yearShort = String(year).slice(2)
+
+  if (month === 0) return `Q1 '${yearShort}`
+  if (month === 3) return 'Q2'
+  if (month === 6) return 'Q3'
+  if (month === 9) return 'Q4'
+  return ''
+}
+
+// Check if a date is at a quarter boundary (Jan, Apr, Jul, Oct)
+export function isQuarterStart(date: Date | string): boolean {
+  const month = new Date(date).getMonth()
+  return month === 0 || month === 3 || month === 6 || month === 9
+}
+
+// Format date as year only (for Jan 1st) or empty
+export function formatDateYearly(date: Date | string): string {
+  const d = new Date(date)
+  const month = d.getMonth()
+  if (month === 0) return String(d.getFullYear())
+  return ''
+}
+
 export function calculateRoC(current: number, previous: number): number {
   if (previous === 0) return 0
   return ((current - previous) / previous) * 100
