@@ -61,6 +61,7 @@ export function M2Chart({
   const [cryptoLag, setCryptoLag] = useState(10) // Default 10 month lag (per Howell's M2 research)
   const [cryptoViewMode, setCryptoViewMode] = useState<'price' | 'yoy'>('yoy')
   const [showSignals, setShowSignals] = useState(true)
+  const [useLogScale, setUseLogScale] = useState(false) // Log scale for price axis
 
   const chartData = useMemo(() => {
     if (!data || data.length === 0) return []
@@ -226,6 +227,19 @@ export function M2Chart({
                 <option value="15">M2 leads 15mo</option>
                 <option value="18">M2 leads 18mo</option>
               </select>
+              {cryptoViewMode === 'price' && (
+                <button
+                  onClick={() => setUseLogScale(!useLogScale)}
+                  className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                    useLogScale
+                      ? 'bg-green-500 text-white'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                  title="Toggle logarithmic scale for price"
+                >
+                  Log
+                </button>
+              )}
             </>
           )}
         </div>
@@ -261,10 +275,12 @@ export function M2Chart({
                 cryptoViewMode === 'yoy' ? `${(value * 10).toFixed(0)}%` : `$${value}K`
               }
               tickMargin={10}
+              scale={cryptoViewMode === 'price' && useLogScale ? 'log' : 'auto'}
+              domain={cryptoViewMode === 'price' && useLogScale ? ['auto', 'auto'] : undefined}
               label={{
                 value: cryptoViewMode === 'yoy'
                   ? `Crypto YoY% (M2 leads ${cryptoLag}mo)`
-                  : `Crypto Price (M2 leads ${cryptoLag}mo)`,
+                  : `Crypto Price${useLogScale ? ' (Log)' : ''} (M2 leads ${cryptoLag}mo)`,
                 angle: 90,
                 position: 'insideRight',
                 style: { fill: '#f59e0b', fontSize: 10 },

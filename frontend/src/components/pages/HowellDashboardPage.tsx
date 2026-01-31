@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
   ComposedChart,
   Line,
@@ -97,6 +97,8 @@ export function HowellDashboardPage() {
     howellRefreshErrors,
     livePrices,
   } = useAppStore()
+
+  const [useBtcLogScale, setUseBtcLogScale] = useState(false)
 
   const netLiquidityData = useMemo(() => generateNetLiquidityHistory(), [])
   const decisionMatrix = useMemo(
@@ -322,10 +324,25 @@ export function HowellDashboardPage() {
       {/* Net Liquidity Chart */}
       <Card>
         <CardHeader>
-          <CardTitle>Net Liquidity Over Time with Bitcoin Correlation</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Bitcoin price (orange) shown with 13-week lag to demonstrate liquidity leading price action
-          </p>
+          <div className="flex items-start justify-between">
+            <div>
+              <CardTitle>Net Liquidity Over Time with Bitcoin Correlation</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Bitcoin price (orange) shown with 13-week lag to demonstrate liquidity leading price action
+              </p>
+            </div>
+            <button
+              onClick={() => setUseBtcLogScale(!useBtcLogScale)}
+              className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                useBtcLogScale
+                  ? 'bg-orange-500 text-white'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+              title="Toggle logarithmic scale for Bitcoin price"
+            >
+              {useBtcLogScale ? 'Log Scale' : 'Linear Scale'}
+            </button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="h-[450px]">
@@ -356,7 +373,9 @@ export function HowellDashboardPage() {
                   orientation="right"
                   tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
                   tick={{ fontSize: 12 }}
-                  label={{ value: 'BTC Price', angle: 90, position: 'insideRight', fontSize: 12 }}
+                  scale={useBtcLogScale ? 'log' : 'auto'}
+                  domain={useBtcLogScale ? ['auto', 'auto'] : undefined}
+                  label={{ value: `BTC Price${useBtcLogScale ? ' (Log)' : ''}`, angle: 90, position: 'insideRight', fontSize: 12 }}
                 />
                 <Tooltip
                   contentStyle={{
