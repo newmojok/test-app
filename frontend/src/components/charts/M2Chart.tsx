@@ -15,6 +15,7 @@ import {
 import { formatDateQuarterly, formatDateShort, formatPercent, isQuarterStart } from '@/lib/utils'
 import type { M2CountryData, RecessionPeriod } from '@/types'
 import { mockBitcoinData, mockEthereumData } from '@/data/mockData'
+import { generateNetLiquidityHistory } from '@/data/howellIndicators'
 
 const COUNTRY_COLORS: Record<string, string> = {
   US: '#3b82f6',
@@ -58,10 +59,14 @@ export function M2Chart({
 }: M2ChartProps) {
   const [showBitcoin, setShowBitcoin] = useState(true)
   const [showEthereum, setShowEthereum] = useState(false)
+  const [showNetLiquidity, setShowNetLiquidity] = useState(false)
   const [cryptoLag, setCryptoLag] = useState(10) // Default 10 month lag (per Howell's M2 research)
   const [cryptoViewMode, setCryptoViewMode] = useState<'price' | 'yoy'>('yoy')
   const [showSignals, setShowSignals] = useState(true)
   const [useLogScale, setUseLogScale] = useState(false) // Log scale for price axis
+
+  // Generate net liquidity data
+  const netLiquidityHistory = useMemo(() => generateNetLiquidityHistory(), [])
 
   const chartData = useMemo(() => {
     if (!data || data.length === 0) return []
@@ -143,10 +148,27 @@ export function M2Chart({
       })
     }
 
+    // Add Net Liquidity data (Fed Balance Sheet - TGA - RRP)
+    if (showNetLiquidity) {
+      const nlByMonth = new Map<string, number>()
+      netLiquidityHistory.forEach((nlPoint) => {
+        const key = nlPoint.date.substring(0, 7)
+        nlByMonth.set(key, nlPoint.netLiquidity)
+      })
+
+      dateMap.forEach((entry, dateStr) => {
+        const key = dateStr.substring(0, 7)
+        const nlValue = nlByMonth.get(key)
+        if (nlValue !== undefined) {
+          entry.NetLiq = nlValue / 1e12 // Convert to trillions for chart scale
+        }
+      })
+    }
+
     return Array.from(dateMap.values()).sort(
       (a, b) => new Date(String(a.date)).getTime() - new Date(String(b.date)).getTime()
     )
-  }, [data, viewMode, selectedCountries, showBitcoin, showEthereum, cryptoLag, cryptoViewMode])
+  }, [data, viewMode, selectedCountries, showBitcoin, showEthereum, showNetLiquidity, netLiquidityHistory, cryptoLag, cryptoViewMode])
 
   const activeCountries = useMemo(() => {
     return data
@@ -182,6 +204,17 @@ export function M2Chart({
             }`}
           >
             Signals
+          </button>
+          <button
+            onClick={() => setShowNetLiquidity(!showNetLiquidity)}
+            className={`px-2 py-1 text-xs rounded-md transition-colors ${
+              showNetLiquidity
+                ? 'bg-cyan-500 text-white'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+            }`}
+            title="Net Liquidity = Fed Balance Sheet - TGA - RRP"
+          >
+            Net Liq
           </button>
           <button
             onClick={() => setShowBitcoin(!showBitcoin)}
@@ -310,6 +343,9 @@ export function M2Chart({
                 }
                 return [`$${(value * 100).toLocaleString()}`, 'Ethereum']
               }
+              if (name === 'Net Liquidity' || name === 'NetLiq') {
+                return [`$${value.toFixed(2)}T`, 'Net Liquidity']
+              }
               return [
                 viewMode === 'absolute' ? `$${value.toFixed(2)}T` : formatPercent(value),
                 String(name),
@@ -378,6 +414,19 @@ export function M2Chart({
               activeDot={{ r: 4 }}
             />
           ))}
+
+          {showNetLiquidity && (
+            <Line
+              yAxisId="left"
+              type="monotone"
+              dataKey="NetLiq"
+              name="Net Liquidity"
+              stroke="#06b6d4"
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 4 }}
+            />
+          )}
 
           {showBitcoin && (
             <Line
