@@ -60,7 +60,7 @@ export async function fetchCryptoPrices(): Promise<{
 // Free API key available at https://fred.stlouisfed.org/docs/api/api_key.html
 // ============================================
 
-const FRED_API_KEY = 'DEMO_KEY' // Replace with real key for production
+const FRED_API_KEY = 'e6930574b6cfcbc6b9efaab863003b83'
 
 // Fallback values when FRED API is unavailable (based on recent data)
 // These are updated periodically to remain reasonable approximations
