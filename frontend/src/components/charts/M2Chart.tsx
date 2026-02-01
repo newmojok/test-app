@@ -60,10 +60,11 @@ export function M2Chart({
   const [showBitcoin, setShowBitcoin] = useState(true)
   const [showEthereum, setShowEthereum] = useState(false)
   const [showNetLiquidity, setShowNetLiquidity] = useState(false)
-  const [cryptoLag, setCryptoLag] = useState(10) // Default 10 month lag (per Howell's M2 research)
+  const [cryptoLag, setCryptoLag] = useState(3) // Default 3 month lag (~13 weeks per Howell's research)
   const [cryptoViewMode, setCryptoViewMode] = useState<'price' | 'yoy'>('yoy')
   const [showSignals, setShowSignals] = useState(true)
   const [useLogScale, setUseLogScale] = useState(false) // Log scale for price axis
+  const [showForecast, setShowForecast] = useState(true) // Show forecast zone on right side
 
   // Generate net liquidity data
   const netLiquidityHistory = useMemo(() => generateNetLiquidityHistory(), [])
@@ -90,7 +91,7 @@ export function M2Chart({
 
     // Add Bitcoin data with lag adjustment
     // M2 LEADS crypto, so we look FORWARD in time for BTC data
-    // e.g., with 10mo lag, Jan 2024 M2 predicts Nov 2024 BTC
+    // e.g., with 3mo lag, Jan 2026 M2 predicts Apr 2026 BTC
     if (showBitcoin) {
       const btcByMonth = new Map<string, { price: number; yoyChange?: number }>()
       mockBitcoinData.forEach((btcPoint) => {
@@ -165,10 +166,47 @@ export function M2Chart({
       })
     }
 
-    return Array.from(dateMap.values()).sort(
+    let result = Array.from(dateMap.values()).sort(
       (a, b) => new Date(String(a.date)).getTime() - new Date(String(b.date)).getTime()
     )
-  }, [data, viewMode, selectedCountries, showBitcoin, showEthereum, showNetLiquidity, netLiquidityHistory, cryptoLag, cryptoViewMode])
+
+    // Add forecast zone: extend x-axis to the right by the lead time
+    // This shows where BTC "should" go based on current M2 readings
+    if (showForecast && cryptoLag > 0 && (showBitcoin || showEthereum)) {
+      const lastDataDate = result.length > 0 ? new Date(String(result[result.length - 1].date)) : new Date()
+
+      // Add future months for the forecast period
+      for (let i = 1; i <= cryptoLag; i++) {
+        const futureDate = new Date(lastDataDate)
+        futureDate.setMonth(futureDate.getMonth() + i)
+        const futureDateStr = futureDate.toISOString().split('T')[0]
+
+        // Create forecast entry with isForecast flag
+        const forecastEntry: Record<string, string | number | boolean> = {
+          date: futureDateStr,
+          isForecast: true,
+        }
+
+        result.push(forecastEntry as Record<string, string | number>)
+      }
+    }
+
+    return result
+  }, [data, viewMode, selectedCountries, showBitcoin, showEthereum, showNetLiquidity, netLiquidityHistory, cryptoLag, cryptoViewMode, showForecast])
+
+  // Calculate forecast zone boundaries
+  const forecastZone = useMemo(() => {
+    if (!showForecast || cryptoLag <= 0 || (!showBitcoin && !showEthereum)) return null
+
+    const forecastData = chartData.filter(d => d.isForecast)
+    if (forecastData.length === 0) return null
+
+    const nonForecastData = chartData.filter(d => !d.isForecast)
+    const lastRealDate = nonForecastData.length > 0 ? String(nonForecastData[nonForecastData.length - 1].date) : null
+    const lastForecastDate = String(forecastData[forecastData.length - 1].date)
+
+    return { start: lastRealDate, end: lastForecastDate }
+  }, [chartData, showForecast, cryptoLag, showBitcoin, showEthereum])
 
   const activeCountries = useMemo(() => {
     return data
@@ -250,16 +288,27 @@ export function M2Chart({
                 value={cryptoLag}
                 onChange={(e) => setCryptoLag(parseInt(e.target.value))}
                 className="px-2 py-1 text-xs rounded-md bg-muted border border-border"
-                title="How far ahead M2 predicts crypto prices (Howell: 10-12mo)"
+                title="How far ahead liquidity predicts crypto prices (Howell: ~13 weeks)"
               >
                 <option value="0">No shift</option>
-                <option value="6">M2 leads 6mo</option>
-                <option value="9">M2 leads 9mo</option>
-                <option value="10">M2 leads 10mo ★</option>
-                <option value="12">M2 leads 12mo</option>
-                <option value="15">M2 leads 15mo</option>
-                <option value="18">M2 leads 18mo</option>
+                <option value="2">~8 weeks</option>
+                <option value="3">~13 weeks ★</option>
+                <option value="4">~4 months</option>
+                <option value="6">~6 months</option>
+                <option value="9">~9 months</option>
+                <option value="12">~12 months</option>
               </select>
+              <button
+                onClick={() => setShowForecast(!showForecast)}
+                className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                  showForecast
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                }`}
+                title="Show forecast zone - where BTC should go based on current M2"
+              >
+                Forecast
+              </button>
               {cryptoViewMode === 'price' && (
                 <button
                   onClick={() => setUseLogScale(!useLogScale)}
@@ -353,6 +402,24 @@ export function M2Chart({
             }}
           />
           <Legend />
+
+          {/* Forecast zone shading */}
+          {forecastZone && forecastZone.start && (
+            <ReferenceArea
+              yAxisId="left"
+              x1={forecastZone.start}
+              x2={forecastZone.end}
+              fill="#10b981"
+              fillOpacity={0.15}
+              strokeOpacity={0}
+              label={{
+                value: `Forecast: BTC in ${cryptoLag}mo`,
+                position: 'insideTop',
+                fill: '#10b981',
+                fontSize: 11,
+              }}
+            />
+          )}
 
           {/* Recession shading */}
           {showRecessions &&
@@ -458,7 +525,7 @@ export function M2Chart({
 
       {(showBitcoin || showEthereum) && (
         <div className="mt-2 text-xs text-muted-foreground text-center">
-          💡 Tip: Per Howell's research, M2 leads crypto by ~10-12 months. Adjust lag to see correlation.
+          Per Howell's research, global liquidity leads crypto by ~13 weeks. Toggle Forecast to see where BTC should go.
         </div>
       )}
     </div>
