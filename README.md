@@ -137,7 +137,7 @@ liquidity-cycle-tracker/
 ## Key Metrics
 
 ### 6-Month Rate of Change (RoC)
-Per Michael Howell's research, M2 money supply leads global asset prices (Bitcoin, equities) by 10-12 months. A cross above +5% typically signals risk-on conditions.
+Per Michael Howell's research, global liquidity leads risk asset prices (Bitcoin, equities) by ~13 weeks (~3 months). A cross above +5% typically signals risk-on conditions.
 
 ### Credit Impulse
 Measures the change in new credit creation as a percentage of GDP. China accounts for ~40% of global credit creation.

@@ -14,12 +14,12 @@ interface CorrelationsPageProps {
 function adjustCorrelations(baseMatrix: number[][], timePeriod: number, lagMonths: number): number[][] {
   // Adjust correlations based on settings
   // Longer time periods = slightly lower correlations (more noise)
-  // Per Howell: M2 leads crypto by ~10-12mo, net liquidity by ~13 weeks
+  // Per Howell: global liquidity leads crypto by ~13 weeks (~3 months)
   const timeAdjust = timePeriod === 30 ? 0.95 : timePeriod === 90 ? 1.0 : timePeriod === 180 ? 0.97 : 0.93
 
-  // BTC-M2 correlation peaks around 9-12mo lag (per Howell research)
-  const lagMultipliers: Record<number, number> = { 0: 0.75, 3: 0.85, 6: 0.92, 9: 1.0, 12: 0.98 }
-  const lagAdjust = lagMultipliers[lagMonths] || 1.0
+  // BTC-liquidity correlation peaks around 3mo lag (~13 weeks per Howell research)
+  const lagMultipliers: Record<number, number> = { 0: 0.75, 3: 1.0, 6: 0.92, 9: 0.85, 12: 0.80 }
+  const lagAdjust = lagMultipliers[lagMonths] || 0.85
 
   return baseMatrix.map((row, i) =>
     row.map((val, j) => {
@@ -37,7 +37,7 @@ function adjustCorrelations(baseMatrix: number[][], timePeriod: number, lagMonth
 }
 
 export function CorrelationsPage({ data, isLoading }: CorrelationsPageProps) {
-  const [lagPeriod, setLagPeriod] = useState(9) // Default to 9mo (per Howell: M2 leads crypto by ~10-12mo)
+  const [lagPeriod, setLagPeriod] = useState(3) // Default to 3mo (~13 weeks per Howell's research)
   const [timePeriod, setTimePeriod] = useState('90')
 
   // Adjust correlations based on settings
@@ -197,8 +197,7 @@ export function CorrelationsPage({ data, isLoading }: CorrelationsPageProps) {
             </p>
             <p className="pt-2 border-t border-border">
               <strong>Note:</strong> Correlations with lag show how liquidity metrics predict
-              future asset prices. Per Howell's research, M2-BTC correlation peaks at ~10-12 month lag,
-              while net liquidity leads risk assets by ~13 weeks.
+              future asset prices. Per Howell's research, global liquidity leads risk assets by ~13 weeks (~3 months).
             </p>
           </CardContent>
         </Card>
