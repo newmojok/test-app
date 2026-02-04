@@ -64,7 +64,9 @@ export function M2Chart({
   const [cryptoViewMode, setCryptoViewMode] = useState<'price' | 'yoy'>('yoy')
   const [showSignals, setShowSignals] = useState(true)
   const [useLogScale, setUseLogScale] = useState(false) // Log scale for price axis
-  const [showForecast, setShowForecast] = useState(true) // Show forecast zone on right side
+  // Separate forecast controls for BTC and Liquidity (in weeks)
+  const [btcForecastWeeks, setBtcForecastWeeks] = useState(13) // Default ~13 weeks per Howell
+  const [liqForecastWeeks, setLiqForecastWeeks] = useState(0) // Default off for liquidity
 
   // Generate net liquidity data
   const netLiquidityHistory = useMemo(() => generateNetLiquidityHistory(), [])
@@ -170,13 +172,19 @@ export function M2Chart({
       (a, b) => new Date(String(a.date)).getTime() - new Date(String(b.date)).getTime()
     )
 
-    // Add forecast zone: extend x-axis to the right by the lead time
-    // This shows where BTC "should" go based on current M2 readings
-    if (showForecast && cryptoLag > 0 && (showBitcoin || showEthereum)) {
+    // Add forecast zones: extend x-axis to accommodate both BTC and Liquidity forecasts
+    const btcForecastMonths = Math.ceil(btcForecastWeeks / 4.33) // Convert weeks to months
+    const liqForecastMonths = Math.ceil(liqForecastWeeks / 4.33)
+    const maxForecastMonths = Math.max(
+      (showBitcoin || showEthereum) ? btcForecastMonths : 0,
+      liqForecastMonths // Liquidity forecast applies to M2/NetLiq data
+    )
+
+    if (maxForecastMonths > 0) {
       const lastDataDate = result.length > 0 ? new Date(String(result[result.length - 1].date)) : new Date()
 
-      // Add future months for the forecast period
-      for (let i = 1; i <= cryptoLag; i++) {
+      // Add future months for the longest forecast period
+      for (let i = 1; i <= maxForecastMonths; i++) {
         const futureDate = new Date(lastDataDate)
         futureDate.setMonth(futureDate.getMonth() + i)
         const futureDateStr = futureDate.toISOString().split('T')[0]
@@ -192,21 +200,40 @@ export function M2Chart({
     }
 
     return result
-  }, [data, viewMode, selectedCountries, showBitcoin, showEthereum, showNetLiquidity, netLiquidityHistory, cryptoLag, cryptoViewMode, showForecast])
+  }, [data, viewMode, selectedCountries, showBitcoin, showEthereum, showNetLiquidity, netLiquidityHistory, cryptoLag, cryptoViewMode, btcForecastWeeks, liqForecastWeeks])
 
-  // Calculate forecast zone boundaries
-  const forecastZone = useMemo(() => {
-    if (!showForecast || cryptoLag <= 0 || (!showBitcoin && !showEthereum)) return null
-
-    const forecastData = chartData.filter(d => d.isForecast)
-    if (forecastData.length === 0) return null
-
+  // Calculate separate forecast zone boundaries for BTC and Liquidity
+  const forecastZones = useMemo(() => {
     const nonForecastData = chartData.filter(d => !d.isForecast)
-    const lastRealDate = nonForecastData.length > 0 ? String(nonForecastData[nonForecastData.length - 1].date) : null
-    const lastForecastDate = String(forecastData[forecastData.length - 1].date)
+    if (nonForecastData.length === 0) return { btc: null, liquidity: null }
 
-    return { start: lastRealDate, end: lastForecastDate }
-  }, [chartData, showForecast, cryptoLag, showBitcoin, showEthereum])
+    const lastRealDate = String(nonForecastData[nonForecastData.length - 1].date)
+    const lastRealDateObj = new Date(lastRealDate)
+
+    // BTC forecast zone
+    let btcZone = null
+    const btcForecastMonths = Math.ceil(btcForecastWeeks / 4.33)
+    if (btcForecastWeeks > 0 && (showBitcoin || showEthereum)) {
+      const btcEndDate = new Date(lastRealDateObj)
+      btcEndDate.setMonth(btcEndDate.getMonth() + btcForecastMonths)
+      const btcEndDateStr = btcEndDate.toISOString().split('T')[0]
+      const btcEndLabel = formatDateShort(btcEndDate)
+      btcZone = { start: lastRealDate, end: btcEndDateStr, endLabel: btcEndLabel }
+    }
+
+    // Liquidity forecast zone
+    let liqZone = null
+    const liqForecastMonths = Math.ceil(liqForecastWeeks / 4.33)
+    if (liqForecastWeeks > 0) {
+      const liqEndDate = new Date(lastRealDateObj)
+      liqEndDate.setMonth(liqEndDate.getMonth() + liqForecastMonths)
+      const liqEndDateStr = liqEndDate.toISOString().split('T')[0]
+      const liqEndLabel = formatDateShort(liqEndDate)
+      liqZone = { start: lastRealDate, end: liqEndDateStr, endLabel: liqEndLabel }
+    }
+
+    return { btc: btcZone, liquidity: liqZone }
+  }, [chartData, btcForecastWeeks, liqForecastWeeks, showBitcoin, showEthereum])
 
   const activeCountries = useMemo(() => {
     return data
@@ -298,17 +325,23 @@ export function M2Chart({
                 <option value="9">~9 months</option>
                 <option value="12">~12 months</option>
               </select>
-              <button
-                onClick={() => setShowForecast(!showForecast)}
-                className={`px-2 py-1 text-xs rounded-md transition-colors ${
-                  showForecast
-                    ? 'bg-emerald-500 text-white'
-                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              <select
+                value={btcForecastWeeks}
+                onChange={(e) => setBtcForecastWeeks(parseInt(e.target.value))}
+                className={`px-2 py-1 text-xs rounded-md border ${
+                  btcForecastWeeks > 0
+                    ? 'bg-amber-500/20 border-amber-500 text-amber-600'
+                    : 'bg-muted border-border'
                 }`}
-                title="Show forecast zone - where BTC should go based on current M2"
+                title="How far to forecast Bitcoin price"
               >
-                Forecast
-              </button>
+                <option value="0">BTC Forecast: Off</option>
+                <option value="4">BTC: 4 weeks</option>
+                <option value="8">BTC: 8 weeks</option>
+                <option value="13">BTC: 13 weeks ★</option>
+                <option value="26">BTC: 26 weeks</option>
+                <option value="52">BTC: 52 weeks</option>
+              </select>
               {cryptoViewMode === 'price' && (
                 <button
                   onClick={() => setUseLogScale(!useLogScale)}
@@ -324,6 +357,23 @@ export function M2Chart({
               )}
             </>
           )}
+          <select
+            value={liqForecastWeeks}
+            onChange={(e) => setLiqForecastWeeks(parseInt(e.target.value))}
+            className={`px-2 py-1 text-xs rounded-md border ${
+              liqForecastWeeks > 0
+                ? 'bg-cyan-500/20 border-cyan-500 text-cyan-600'
+                : 'bg-muted border-border'
+            }`}
+            title="How far to forecast Global Liquidity"
+          >
+            <option value="0">Liquidity Forecast: Off</option>
+            <option value="4">Liq: 4 weeks</option>
+            <option value="8">Liq: 8 weeks</option>
+            <option value="13">Liq: 13 weeks</option>
+            <option value="26">Liq: 26 weeks</option>
+            <option value="52">Liq: 52 weeks</option>
+          </select>
         </div>
       )}
       <ResponsiveContainer width="100%" height={height}>
@@ -403,20 +453,40 @@ export function M2Chart({
           />
           <Legend />
 
-          {/* Forecast zone shading */}
-          {forecastZone && forecastZone.start && (
+          {/* BTC Forecast zone shading */}
+          {forecastZones.btc && (
             <ReferenceArea
               yAxisId="left"
-              x1={forecastZone.start}
-              x2={forecastZone.end}
-              fill="#10b981"
-              fillOpacity={0.15}
+              x1={forecastZones.btc.start}
+              x2={forecastZones.btc.end}
+              fill="#f59e0b"
+              fillOpacity={0.12}
               strokeOpacity={0}
               label={{
-                value: `Forecast: BTC in ${cryptoLag}mo`,
+                value: `BTC → ${forecastZones.btc.endLabel}`,
                 position: 'insideTop',
-                fill: '#10b981',
+                fill: '#f59e0b',
                 fontSize: 11,
+                fontWeight: 600,
+              }}
+            />
+          )}
+
+          {/* Liquidity Forecast zone shading */}
+          {forecastZones.liquidity && (
+            <ReferenceArea
+              yAxisId="left"
+              x1={forecastZones.liquidity.start}
+              x2={forecastZones.liquidity.end}
+              fill="#06b6d4"
+              fillOpacity={0.12}
+              strokeOpacity={0}
+              label={{
+                value: `Liquidity → ${forecastZones.liquidity.endLabel}`,
+                position: forecastZones.btc ? 'insideBottom' : 'insideTop',
+                fill: '#06b6d4',
+                fontSize: 11,
+                fontWeight: 600,
               }}
             />
           )}
@@ -523,9 +593,9 @@ export function M2Chart({
         </ComposedChart>
       </ResponsiveContainer>
 
-      {(showBitcoin || showEthereum) && (
+      {(showBitcoin || showEthereum || liqForecastWeeks > 0) && (
         <div className="mt-2 text-xs text-muted-foreground text-center">
-          Per Howell's research, global liquidity leads crypto by ~13 weeks. Toggle Forecast to see where BTC should go.
+          Per Howell's research, global liquidity leads crypto by ~13 weeks. Use forecast dropdowns to project BTC and Liquidity independently.
         </div>
       )}
     </div>
