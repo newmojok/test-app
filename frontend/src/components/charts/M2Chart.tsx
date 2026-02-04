@@ -74,51 +74,24 @@ export function M2Chart({
   const chartData = useMemo(() => {
     if (!data || data.length === 0) return []
 
-    // Combine all country data into unified date format
+    // Build dateMap anchored on Bitcoin dates (the asset we're forecasting)
+    // M2/Liquidity data gets shifted FORWARD to show what predicted each BTC date
     const dateMap = new Map<string, Record<string, string | number>>()
 
-    data.forEach((countryData) => {
-      if (selectedCountries && !selectedCountries.includes(countryData.country)) return
-
-      countryData.data.forEach((point) => {
-        const existing = dateMap.get(point.date) || { date: point.date }
-        if (viewMode === 'absolute') {
-          existing[countryData.country] = point.value / 1e12 // Convert to trillions
-        } else {
-          existing[countryData.country] = point.roc6m
-        }
-        dateMap.set(point.date, existing as Record<string, string | number>)
-      })
-    })
-
-    // Add Bitcoin data with lag adjustment
-    // M2 LEADS crypto, so we look FORWARD in time for BTC data
-    // e.g., with 3mo lag, Jan 2026 M2 predicts Apr 2026 BTC
+    // First, add all Bitcoin dates as the anchor points
     if (showBitcoin) {
-      const btcByMonth = new Map<string, { price: number; yoyChange?: number }>()
       mockBitcoinData.forEach((btcPoint) => {
-        const key = btcPoint.date.substring(0, 7)
-        btcByMonth.set(key, { price: btcPoint.price, yoyChange: btcPoint.yoyChange })
-      })
-
-      dateMap.forEach((entry, dateStr) => {
-        const entryDate = new Date(dateStr)
-        entryDate.setMonth(entryDate.getMonth() + cryptoLag) // ADD lag (look forward)
-        const btcKey = entryDate.toISOString().substring(0, 7)
-        const btcData = btcByMonth.get(btcKey)
-
-        if (btcData) {
-          if (cryptoViewMode === 'yoy' && btcData.yoyChange !== undefined) {
-            entry.BTC = btcData.yoyChange / 10
-          } else if (cryptoViewMode === 'price') {
-            entry.BTC = btcData.price / 1000
-          }
+        const existing = dateMap.get(btcPoint.date) || { date: btcPoint.date }
+        if (cryptoViewMode === 'yoy' && btcPoint.yoyChange !== undefined) {
+          existing.BTC = btcPoint.yoyChange / 10
+        } else if (cryptoViewMode === 'price') {
+          existing.BTC = btcPoint.price / 1000
         }
+        dateMap.set(btcPoint.date, existing as Record<string, string | number>)
       })
     }
 
-    // Add Ethereum data with lag adjustment
-    // M2 LEADS crypto, so we look FORWARD in time for ETH data
+    // Add Ethereum on its actual dates (no shift)
     if (showEthereum) {
       const ethByMonth = new Map<string, number>()
       mockEthereumData.forEach((ethPoint) => {
@@ -128,43 +101,59 @@ export function M2Chart({
         }
       })
 
-      dateMap.forEach((entry, dateStr) => {
-        const entryDate = new Date(dateStr)
-        entryDate.setMonth(entryDate.getMonth() + cryptoLag) // ADD lag (look forward)
-        const ethKey = entryDate.toISOString().substring(0, 7)
-        const ethPrice = ethByMonth.get(ethKey)
-
-        if (ethPrice !== undefined) {
-          if (cryptoViewMode === 'price') {
-            entry.ETH = ethPrice / 100 // Scale for chart
-          } else {
-            // Calculate YoY for ETH
-            const prevYearDate = new Date(entryDate)
-            prevYearDate.setFullYear(prevYearDate.getFullYear() - 1)
-            const prevKey = prevYearDate.toISOString().substring(0, 7)
-            const prevPrice = ethByMonth.get(prevKey)
-            if (prevPrice && prevPrice > 0) {
-              entry.ETH = ((ethPrice - prevPrice) / prevPrice) * 10 // Scale for chart
-            }
+      mockEthereumData.forEach((ethPoint) => {
+        if (ethPoint.price <= 0) return
+        const existing = dateMap.get(ethPoint.date) || { date: ethPoint.date }
+        if (cryptoViewMode === 'price') {
+          existing.ETH = ethPoint.price / 100 // Scale for chart
+        } else {
+          // Calculate YoY for ETH
+          const entryDate = new Date(ethPoint.date)
+          const prevYearDate = new Date(entryDate)
+          prevYearDate.setFullYear(prevYearDate.getFullYear() - 1)
+          const prevKey = prevYearDate.toISOString().substring(0, 7)
+          const prevPrice = ethByMonth.get(prevKey)
+          if (prevPrice && prevPrice > 0) {
+            existing.ETH = ((ethPoint.price - prevPrice) / prevPrice) * 10 // Scale for chart
           }
         }
+        dateMap.set(ethPoint.date, existing as Record<string, string | number>)
       })
     }
 
-    // Add Net Liquidity data (Fed Balance Sheet - TGA - RRP)
-    if (showNetLiquidity) {
-      const nlByMonth = new Map<string, number>()
-      netLiquidityHistory.forEach((nlPoint) => {
-        const key = nlPoint.date.substring(0, 7)
-        nlByMonth.set(key, nlPoint.netLiquidity)
-      })
+    // Add M2 country data SHIFTED FORWARD by cryptoLag
+    // This shows: "M2 from X months ago predicted this BTC date"
+    // e.g., with 3mo lag, Jan M2 appears at Apr (the BTC date it predicts)
+    data.forEach((countryData) => {
+      if (selectedCountries && !selectedCountries.includes(countryData.country)) return
 
-      dateMap.forEach((entry, dateStr) => {
-        const key = dateStr.substring(0, 7)
-        const nlValue = nlByMonth.get(key)
-        if (nlValue !== undefined) {
-          entry.NetLiq = nlValue / 1e12 // Convert to trillions for chart scale
+      countryData.data.forEach((point) => {
+        // Shift M2 date FORWARD by cryptoLag months
+        const m2Date = new Date(point.date)
+        m2Date.setMonth(m2Date.getMonth() + cryptoLag)
+        const shiftedDateStr = m2Date.toISOString().split('T')[0]
+
+        const existing = dateMap.get(shiftedDateStr) || { date: shiftedDateStr }
+        if (viewMode === 'absolute') {
+          existing[countryData.country] = point.value / 1e12 // Convert to trillions
+        } else {
+          existing[countryData.country] = point.roc6m
         }
+        dateMap.set(shiftedDateStr, existing as Record<string, string | number>)
+      })
+    })
+
+    // Add Net Liquidity SHIFTED FORWARD by cryptoLag (same as M2)
+    if (showNetLiquidity) {
+      netLiquidityHistory.forEach((nlPoint) => {
+        // Shift liquidity date FORWARD by cryptoLag months
+        const nlDate = new Date(nlPoint.date)
+        nlDate.setMonth(nlDate.getMonth() + cryptoLag)
+        const shiftedDateStr = nlDate.toISOString().split('T')[0]
+
+        const existing = dateMap.get(shiftedDateStr) || { date: shiftedDateStr }
+        existing.NetLiq = nlPoint.netLiquidity / 1e12 // Convert to trillions for chart scale
+        dateMap.set(shiftedDateStr, existing as Record<string, string | number>)
       })
     }
 
@@ -315,15 +304,15 @@ export function M2Chart({
                 value={cryptoLag}
                 onChange={(e) => setCryptoLag(parseInt(e.target.value))}
                 className="px-2 py-1 text-xs rounded-md bg-muted border border-border"
-                title="How far ahead liquidity predicts crypto prices (Howell: ~13 weeks)"
+                title="How far back to look for M2/liquidity that predicted each BTC date (Howell: ~13 weeks)"
               >
-                <option value="0">No shift</option>
-                <option value="2">~8 weeks</option>
-                <option value="3">~13 weeks ★</option>
-                <option value="4">~4 months</option>
-                <option value="6">~6 months</option>
-                <option value="9">~9 months</option>
-                <option value="12">~12 months</option>
+                <option value="0">M2: No shift</option>
+                <option value="2">M2: -8 weeks</option>
+                <option value="3">M2: -13 weeks ★</option>
+                <option value="4">M2: -4 months</option>
+                <option value="6">M2: -6 months</option>
+                <option value="9">M2: -9 months</option>
+                <option value="12">M2: -12 months</option>
               </select>
               <select
                 value={btcForecastWeeks}
@@ -396,6 +385,13 @@ export function M2Chart({
               viewMode === 'absolute' ? `$${value}T` : `${value.toFixed(1)}%`
             }
             tickMargin={10}
+            label={cryptoLag > 0 ? {
+              value: `M2 (shifted -${cryptoLag}mo)`,
+              angle: -90,
+              position: 'insideLeft',
+              style: { fill: 'var(--color-muted-foreground)', fontSize: 10 },
+              offset: 10,
+            } : undefined}
           />
           {(showBitcoin || showEthereum) && (
             <YAxis
@@ -411,8 +407,8 @@ export function M2Chart({
               domain={cryptoViewMode === 'price' && useLogScale ? ['auto', 'auto'] : undefined}
               label={{
                 value: cryptoViewMode === 'yoy'
-                  ? `Crypto YoY% (M2 leads ${cryptoLag}mo)`
-                  : `Crypto Price${useLogScale ? ' (Log)' : ''} (M2 leads ${cryptoLag}mo)`,
+                  ? `Crypto YoY% (actual dates)`
+                  : `Crypto Price${useLogScale ? ' (Log)' : ''} (actual dates)`,
                 angle: 90,
                 position: 'insideRight',
                 style: { fill: '#f59e0b', fontSize: 10 },
@@ -595,7 +591,7 @@ export function M2Chart({
 
       {(showBitcoin || showEthereum || liqForecastWeeks > 0) && (
         <div className="mt-2 text-xs text-muted-foreground text-center">
-          Per Howell's research, global liquidity leads crypto by ~13 weeks. Use forecast dropdowns to project BTC and Liquidity independently.
+          BTC shown on actual dates. M2/Liquidity shifted forward by {cryptoLag} months to show what predicted each BTC date (Howell: ~13 weeks lead).
         </div>
       )}
     </div>
