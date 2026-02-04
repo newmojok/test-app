@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   ComposedChart,
   Line,
@@ -99,6 +99,11 @@ export function HowellDashboardPage() {
   } = useAppStore()
 
   const [useBtcLogScale, setUseBtcLogScale] = useState(false)
+
+  // Auto-refresh data when page loads
+  useEffect(() => {
+    refreshHowellIndicators()
+  }, [refreshHowellIndicators])
 
   const netLiquidityData = useMemo(() => generateNetLiquidityHistory(), [])
   const decisionMatrix = useMemo(
