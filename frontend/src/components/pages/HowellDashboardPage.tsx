@@ -331,9 +331,9 @@ export function HowellDashboardPage() {
         <CardHeader>
           <div className="flex items-start justify-between">
             <div>
-              <CardTitle>Bitcoin Price with Leading Liquidity Indicators</CardTitle>
+              <CardTitle>Net Liquidity Over Time with Bitcoin Correlation</CardTitle>
               <p className="text-sm text-muted-foreground">
-                BTC on actual dates. Liquidity shown from 13 weeks prior (what predicted each BTC price).
+                Bitcoin price (orange) shown with 13-week lag to demonstrate liquidity leading price action
               </p>
             </div>
             <button
@@ -371,7 +371,7 @@ export function HowellDashboardPage() {
                   yAxisId="left"
                   tickFormatter={(value) => `$${(value / 1e12).toFixed(1)}T`}
                   tick={{ fontSize: 12 }}
-                  label={{ value: 'Liquidity (-13wk)', angle: -90, position: 'insideLeft', fontSize: 12 }}
+                  label={{ value: 'Liquidity', angle: -90, position: 'insideLeft', fontSize: 12 }}
                 />
                 <YAxis
                   yAxisId="right"
@@ -390,12 +390,12 @@ export function HowellDashboardPage() {
                   }}
                   formatter={(value, name) => {
                     const num = typeof value === 'number' ? value : 0
-                    if (name === 'BTC Price') {
-                      return [`$${num.toLocaleString()}`, 'BTC (actual date)']
+                    if (name === 'BTC (13wk lag)' || name === 'BTC Price') {
+                      return [`$${num.toLocaleString()}`, name]
                     }
-                    return [`$${(num / 1e12).toFixed(2)}T`, `${name} (-13wk)`]
+                    return [`$${(num / 1e12).toFixed(2)}T`, name]
                   }}
-                  labelFormatter={(label) => `BTC Date: ${label}`}
+                  labelFormatter={(label) => `Date: ${label}`}
                 />
                 <Legend />
                 <ReferenceLine
@@ -409,7 +409,7 @@ export function HowellDashboardPage() {
                   yAxisId="left"
                   type="monotone"
                   dataKey="fedBalance"
-                  name="Fed Balance (-13wk)"
+                  name="Fed Balance Sheet"
                   fill="#3b82f6"
                   fillOpacity={0.2}
                   stroke="#3b82f6"
@@ -419,7 +419,7 @@ export function HowellDashboardPage() {
                   yAxisId="left"
                   type="monotone"
                   dataKey="netLiquidity"
-                  name="Net Liquidity (-13wk)"
+                  name="Net Liquidity"
                   stroke="#22c55e"
                   strokeWidth={3}
                   dot={false}
@@ -427,8 +427,8 @@ export function HowellDashboardPage() {
                 <Line
                   yAxisId="right"
                   type="monotone"
-                  dataKey="btcPrice"
-                  name="BTC Price"
+                  dataKey="btcPriceLagged"
+                  name="BTC (13wk lag)"
                   stroke="#f59e0b"
                   strokeWidth={2}
                   dot={false}
@@ -437,7 +437,7 @@ export function HowellDashboardPage() {
                   yAxisId="left"
                   type="monotone"
                   dataKey="tga"
-                  name="TGA (-13wk)"
+                  name="TGA"
                   stroke="#ef4444"
                   strokeWidth={1}
                   strokeDasharray="5 5"
@@ -447,7 +447,7 @@ export function HowellDashboardPage() {
                   yAxisId="left"
                   type="monotone"
                   dataKey="rrp"
-                  name="RRP (-13wk)"
+                  name="RRP"
                   stroke="#f97316"
                   strokeWidth={1}
                   strokeDasharray="3 3"
@@ -577,8 +577,8 @@ export function HowellDashboardPage() {
                 <p>
                   <strong>Current Implication (Q2 2026):</strong> Based on current net liquidity levels and trends observed today (late January 2026),
                   we can project risk asset behavior for approximately April-May 2026. If net liquidity is expanding now, expect supportive conditions
-                  for BTC/equities in Q2. If contracting, expect headwinds. The chart above shows BTC on its actual dates, with liquidity data shifted
-                  forward by 13 weeks - so you can see what liquidity conditions predicted each BTC price.
+                  for BTC/equities in Q2. If contracting, expect headwinds. The chart above shows BTC price shifted back 13 weeks to visually demonstrate
+                  how liquidity movements precede price action.
                 </p>
                 <p className="text-xs italic">
                   Source: Michael Howell's "Capital Wars" and CrossBorder Capital research. This framework is used by institutional investors

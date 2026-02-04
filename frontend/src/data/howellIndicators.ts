@@ -24,14 +24,13 @@ export interface HowellIndicator {
 }
 
 export interface NetLiquidityData {
-  date: string // This is the BTC date (anchor)
-  fedBalance: number // Shifted: Fed balance from 3 months ago
-  tga: number // Shifted: TGA from 3 months ago
-  rrp: number // Shifted: RRP from 3 months ago
-  netLiquidity: number // Shifted: Net liquidity from 3 months ago (what predicted this BTC date)
-  btcPrice?: number // Actual BTC price for this date (no shift)
-  // For backwards compatibility with any existing code
-  btcPriceLagged?: number
+  date: string
+  fedBalance: number
+  tga: number
+  rrp: number
+  netLiquidity: number
+  btcPrice?: number
+  btcPriceLagged?: number // BTC price shifted back 13 weeks to show correlation
 }
 
 export interface DecisionMatrixRow {
@@ -314,128 +313,153 @@ const btcPriceHistory: Record<string, number> = {
   '2026-01': 87800,
 }
 
-// Helper function to get liquidity values for a given date
-function getLiquidityForDate(date: Date): { fedBalance: number; tga: number; rrp: number } {
-  const year = date.getFullYear()
-  const monthOfYear = date.getMonth()
-  const startDate = new Date('2015-01-01')
-  const monthIndex = (year - 2015) * 12 + monthOfYear
-
-  // Simulate Fed balance sheet based on actual historical periods
-  let fedBalance: number
-  if (year < 2018) {
-    fedBalance = 4.5e12 + Math.sin(monthIndex * 0.1) * 0.1e12
-  } else if (year === 2018) {
-    fedBalance = 4.5e12 - (monthIndex - 36) * 0.015e12
-  } else if (year === 2019) {
-    if (monthOfYear < 9) {
-      fedBalance = 4.0e12 - (monthOfYear) * 0.01e12
-    } else {
-      fedBalance = 3.9e12 + (monthOfYear - 9) * 0.1e12
-    }
-  } else if (year === 2020) {
-    if (monthOfYear < 3) {
-      fedBalance = 4.2e12
-    } else {
-      fedBalance = 4.2e12 + (monthOfYear - 2) * 0.5e12
-    }
-  } else if (year === 2021) {
-    fedBalance = 7.5e12 + (monthOfYear) * 0.12e12
-  } else if (year === 2022) {
-    if (monthOfYear < 4) {
-      fedBalance = 8.9e12 + monthOfYear * 0.025e12
-    } else {
-      fedBalance = 9.0e12 - (monthOfYear - 4) * 0.08e12
-    }
-  } else if (year === 2023) {
-    fedBalance = 8.4e12 - (monthOfYear) * 0.05e12
-  } else if (year === 2024) {
-    fedBalance = 7.8e12 - (monthOfYear) * 0.04e12
-  } else {
-    fedBalance = 7.3e12 - (monthOfYear) * 0.03e12
-  }
-
-  // Simulate TGA
-  let tga: number
-  if (year < 2019) {
-    tga = 200e9 + Math.sin(monthIndex * 0.4) * 100e9
-  } else if (year === 2019) {
-    tga = 150e9 + Math.abs(Math.sin(monthIndex * 0.3)) * 200e9
-  } else if (year === 2020) {
-    if (monthOfYear < 6) {
-      tga = 400e9 + monthOfYear * 100e9
-    } else {
-      tga = 1600e9 - (monthOfYear - 6) * 150e9
-    }
-  } else if (year === 2021) {
-    if (monthOfYear < 6) {
-      tga = 900e9 - monthOfYear * 120e9
-    } else {
-      tga = 200e9 + (monthOfYear - 6) * 80e9
-    }
-  } else {
-    const tgaBase = 500e9
-    const tgaVariation = Math.sin(monthIndex * 0.3) * 200e9
-    tga = Math.max(100e9, tgaBase + tgaVariation)
-  }
-  tga = Math.max(50e9, tga)
-
-  // Simulate RRP
-  let rrp: number
-  if (year < 2021) {
-    rrp = Math.max(0, 25e9) // Use deterministic value instead of random
-  } else if (year === 2021) {
-    rrp = Math.min(1.5e12, monthOfYear * 120e9)
-  } else if (year === 2022) {
-    if (monthOfYear < 6) {
-      rrp = 1.5e12 + monthOfYear * 150e9
-    } else {
-      rrp = 2.4e12 + Math.sin(monthOfYear * 0.5) * 0.1e12
-    }
-  } else if (year === 2023) {
-    rrp = 2.3e12 - monthOfYear * 100e9
-  } else if (year === 2024) {
-    rrp = 1.1e12 - monthOfYear * 80e9
-  } else {
-    rrp = Math.max(50e9, 200e9 - monthOfYear * 20e9)
-  }
-  rrp = Math.max(0, rrp)
-
-  return { fedBalance, tga, rrp }
-}
-
-// Generate historical net liquidity data anchored on BTC dates
-// BTC remains fixed on its actual dates; liquidity is shifted to show what predicted each BTC price
+// Generate historical net liquidity data from 2015 to present
+// Extended to show full correlation with Bitcoin over multiple market cycles
 export function generateNetLiquidityHistory(): NetLiquidityData[] {
   const data: NetLiquidityData[] = []
-  const startDate = new Date('2015-04-01') // Start 3 months later since we need 3mo lookback
-  const endDate = new Date('2026-01-01')
+  const startDate = new Date('2015-01-01')
+  const months = 133 // Jan 2015 to Jan 2026 (11 years + 1 month)
 
-  const currentDate = new Date(startDate)
-  while (currentDate <= endDate) {
-    const year = currentDate.getFullYear()
-    const monthOfYear = currentDate.getMonth()
+  for (let i = 0; i < months; i++) {
+    const date = new Date(startDate)
+    date.setMonth(date.getMonth() + i)
+    const year = date.getFullYear()
+    const monthIndex = i
 
-    // This is the BTC date (anchor point)
-    const btcDateKey = `${year}-${String(monthOfYear + 1).padStart(2, '0')}`
-    const btcPrice = btcPriceHistory[btcDateKey]
+    // Simulate Fed balance sheet based on actual historical periods
+    // 2015-2019: Post-GFC normalization (~$4.5T plateau, brief QT in 2018-2019)
+    // 2020-2022: COVID expansion ($4T -> $9T)
+    // 2022-present: QT ($9T -> $6.8T)
+    let fedBalance: number
+    if (year < 2018) {
+      // 2015-2017: Fed balance sheet relatively stable around $4.5T after QE ended
+      fedBalance = 4.5e12 + Math.sin(monthIndex * 0.1) * 0.1e12
+    } else if (year === 2018) {
+      // 2018: QT begins, slight decline
+      fedBalance = 4.5e12 - (monthIndex - 36) * 0.015e12
+    } else if (year === 2019) {
+      // 2019: QT continues then pause/repo crisis in Sept
+      const monthOfYear = date.getMonth()
+      if (monthOfYear < 9) {
+        fedBalance = 4.0e12 - (monthOfYear) * 0.01e12
+      } else {
+        // Repo crisis - Fed starts expanding again
+        fedBalance = 3.9e12 + (monthOfYear - 9) * 0.1e12
+      }
+    } else if (year === 2020) {
+      // 2020: COVID - massive expansion
+      const monthOfYear = date.getMonth()
+      if (monthOfYear < 3) {
+        fedBalance = 4.2e12
+      } else {
+        // March 2020 onwards: QE infinity
+        fedBalance = 4.2e12 + (monthOfYear - 2) * 0.5e12
+      }
+    } else if (year === 2021) {
+      // 2021: Continued expansion, peak at end of year
+      fedBalance = 7.5e12 + (date.getMonth()) * 0.12e12
+    } else if (year === 2022) {
+      // 2022: Peak in April, then QT begins June
+      const monthOfYear = date.getMonth()
+      if (monthOfYear < 4) {
+        fedBalance = 8.9e12 + monthOfYear * 0.025e12
+      } else {
+        // QT phase
+        fedBalance = 9.0e12 - (monthOfYear - 4) * 0.08e12
+      }
+    } else if (year === 2023) {
+      // 2023: Continued QT
+      fedBalance = 8.4e12 - (date.getMonth()) * 0.05e12
+    } else if (year === 2024) {
+      // 2024: QT continues but slowing
+      fedBalance = 7.8e12 - (date.getMonth()) * 0.04e12
+    } else {
+      // 2025-2026
+      fedBalance = 7.3e12 - (date.getMonth()) * 0.03e12
+    }
 
-    // Look BACK 3 months for liquidity data (what predicted this BTC price)
-    const liquidityDate = new Date(currentDate)
-    liquidityDate.setMonth(liquidityDate.getMonth() - 3)
-    const { fedBalance, tga, rrp } = getLiquidityForDate(liquidityDate)
+    // Simulate TGA (volatile around debt ceiling events)
+    let tga: number
+    if (year < 2019) {
+      // Pre-2019: TGA relatively stable
+      tga = 200e9 + Math.sin(monthIndex * 0.4) * 100e9
+    } else if (year === 2019) {
+      // 2019: Debt ceiling dynamics
+      tga = 150e9 + Math.abs(Math.sin(monthIndex * 0.3)) * 200e9
+    } else if (year === 2020) {
+      // 2020: COVID - TGA swings wildly
+      const monthOfYear = date.getMonth()
+      if (monthOfYear < 6) {
+        tga = 400e9 + monthOfYear * 100e9
+      } else {
+        tga = 1600e9 - (monthOfYear - 6) * 150e9
+      }
+    } else if (year === 2021) {
+      // 2021: TGA drawdown then rebuild
+      const monthOfYear = date.getMonth()
+      if (monthOfYear < 6) {
+        tga = 900e9 - monthOfYear * 120e9
+      } else {
+        tga = 200e9 + (monthOfYear - 6) * 80e9
+      }
+    } else {
+      // 2022+: Normal oscillation
+      const tgaBase = 500e9
+      const tgaVariation = Math.sin(monthIndex * 0.3) * 200e9
+      tga = Math.max(100e9, tgaBase + tgaVariation)
+    }
+    tga = Math.max(50e9, tga)
+
+    // Simulate RRP (didn't exist meaningfully until 2021)
+    let rrp: number
+    if (year < 2021) {
+      // Pre-2021: RRP was minimal
+      rrp = Math.max(0, Math.random() * 50e9)
+    } else if (year === 2021) {
+      // 2021: RRP starts building up massively
+      const monthOfYear = date.getMonth()
+      rrp = Math.min(1.5e12, monthOfYear * 120e9)
+    } else if (year === 2022) {
+      // 2022: RRP peaks at $2.5T
+      const monthOfYear = date.getMonth()
+      if (monthOfYear < 6) {
+        rrp = 1.5e12 + monthOfYear * 150e9
+      } else {
+        rrp = 2.4e12 + Math.sin(monthOfYear * 0.5) * 0.1e12
+      }
+    } else if (year === 2023) {
+      // 2023: RRP starts declining
+      const monthOfYear = date.getMonth()
+      rrp = 2.3e12 - monthOfYear * 100e9
+    } else if (year === 2024) {
+      // 2024: RRP continues declining rapidly
+      const monthOfYear = date.getMonth()
+      rrp = 1.1e12 - monthOfYear * 80e9
+    } else {
+      // 2025-2026: Near zero
+      rrp = Math.max(50e9, 200e9 - date.getMonth() * 20e9)
+    }
+    rrp = Math.max(0, rrp)
+
+    // Get BTC price for this month
+    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+    const btcPrice = btcPriceHistory[dateKey]
+
+    // Get BTC price from 3 months (13 weeks) later to show the lag effect
+    const laggedDate = new Date(date)
+    laggedDate.setMonth(laggedDate.getMonth() + 3)
+    const laggedDateKey = `${laggedDate.getFullYear()}-${String(laggedDate.getMonth() + 1).padStart(2, '0')}`
+    const btcPriceLagged = btcPriceHistory[laggedDateKey]
 
     data.push({
-      date: currentDate.toISOString().split('T')[0], // BTC date is the anchor
-      fedBalance, // From 3 months ago
-      tga, // From 3 months ago
-      rrp, // From 3 months ago
-      netLiquidity: calculateNetLiquidity(fedBalance, tga, rrp), // From 3 months ago
-      btcPrice, // Actual BTC price for this date
-      btcPriceLagged: btcPrice, // Same as btcPrice now (for backwards compatibility)
+      date: date.toISOString().split('T')[0],
+      fedBalance,
+      tga,
+      rrp,
+      netLiquidity: calculateNetLiquidity(fedBalance, tga, rrp),
+      btcPrice,
+      btcPriceLagged,
     })
-
-    currentDate.setMonth(currentDate.getMonth() + 1)
   }
 
   return data
