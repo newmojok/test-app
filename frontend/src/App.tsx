@@ -66,7 +66,7 @@ function Dashboard() {
 
       // Update the timestamp on mock data to show refresh worked
       // In production, this would fetch fresh data from APIs
-      mockDashboardStats.globalM2Roc = 4.8 + (Math.random() - 0.5) * 0.4
+      mockDashboardStats.globalM2Roc = 5.2 + (Math.random() - 0.5) * 0.4
       mockDashboardStats.creditImpulse = 2.1 + (Math.random() - 0.5) * 0.3
     } finally {
       setIsLoading(false)
