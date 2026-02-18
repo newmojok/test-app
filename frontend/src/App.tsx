@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from 'react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { useCallback } from 'react'
+import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query'
 import { useAppStore } from './store'
 import { cn } from './lib/utils'
 
@@ -19,16 +19,13 @@ import { HowellDashboardPage } from './components/pages/HowellDashboardPage'
 import { HowellToolsPage } from './components/pages/HowellToolsPage'
 import { HowellFrameworkPage } from './components/pages/HowellFrameworkPage'
 
-// Mock data for development
-import {
-  mockM2Data,
-  mockCreditImpulseData,
-  mockQuarterlyMaturities,
-  mockDebtMaturities,
-  mockAlerts,
-  mockCorrelationMatrix,
-  mockDashboardStats,
-} from './data/mockData'
+// Data hooks for real API data
+import { useM2Data } from './hooks/useM2Data'
+import { useAlerts, useMarkAlertRead } from './hooks/useAlerts'
+import { useDashboardStats } from './hooks/useDashboardStats'
+import { useCreditImpulse } from './hooks/useCreditImpulse'
+import { useDebtMaturities, useQuarterlyMaturities } from './hooks/useDebtMaturities'
+import { useCorrelationMatrix } from './hooks/useCorrelations'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -44,77 +41,75 @@ function Dashboard() {
     activeTab,
     setActiveTab,
     sidebarOpen,
-    setAlerts,
-    alerts,
-    markAlertAsRead,
     refreshHowellIndicators,
     howellIsRefreshing,
   } = useAppStore()
-  const [isLoading, setIsLoading] = useState(false)
 
-  // Initialize alerts from mock data
-  useEffect(() => {
-    setAlerts(mockAlerts)
-  }, [setAlerts])
+  const queryClientInstance = useQueryClient()
+
+  // Fetch all data using React Query hooks (real API data)
+  const { data: m2Data, isLoading: m2Loading } = useM2Data()
+  const { data: alerts = [], isLoading: alertsLoading } = useAlerts()
+  const { data: stats, isLoading: statsLoading } = useDashboardStats()
+  const { data: creditImpulseData, isLoading: creditLoading } = useCreditImpulse()
+  const { data: maturities, isLoading: maturitiesLoading } = useDebtMaturities()
+  const { data: quarterlyMaturities, isLoading: quarterlyLoading } = useQuarterlyMaturities()
+  const { data: correlationMatrix, isLoading: correlationsLoading } = useCorrelationMatrix()
+
+  const markAlertReadMutation = useMarkAlertRead()
+
+  const isLoading = m2Loading || alertsLoading || statsLoading
 
   const handleRefresh = useCallback(async () => {
-    setIsLoading(true)
+    // Refresh Howell indicators
+    await refreshHowellIndicators()
 
-    try {
-      // Refresh Howell indicators (real data refresh)
-      await refreshHowellIndicators()
-
-      // Update the timestamp on mock data to show refresh worked
-      // In production, this would fetch fresh data from APIs
-      mockDashboardStats.globalM2Roc = 5.2 + (Math.random() - 0.5) * 0.4
-      mockDashboardStats.creditImpulse = 2.1 + (Math.random() - 0.5) * 0.3
-    } finally {
-      setIsLoading(false)
-    }
-  }, [refreshHowellIndicators])
+    // Invalidate all queries to refetch fresh data from API
+    await queryClientInstance.invalidateQueries()
+  }, [refreshHowellIndicators, queryClientInstance])
 
   const handleDismissAlert = useCallback(
     (alertId: string) => {
-      markAlertAsRead(alertId)
+      markAlertReadMutation.mutate(alertId)
     },
-    [markAlertAsRead]
+    [markAlertReadMutation]
   )
 
   const handleMarkAllRead = useCallback(() => {
     alerts.forEach((alert) => {
       if (!alert.isRead) {
-        markAlertAsRead(alert.id)
+        markAlertReadMutation.mutate(alert.id)
       }
     })
-  }, [alerts, markAlertAsRead])
+  }, [alerts, markAlertReadMutation])
 
   const renderPage = () => {
     switch (activeTab) {
       case 'overview':
         return (
           <OverviewPage
-            m2Data={mockM2Data}
+            m2Data={m2Data ?? []}
             alerts={alerts}
-            stats={mockDashboardStats}
+            stats={stats ?? null}
             isLoading={isLoading}
             onDismissAlert={handleDismissAlert}
             onViewAllAlerts={() => setActiveTab('alerts')}
           />
         )
       case 'liquidity':
-        return <LiquidityPage m2Data={mockM2Data} isLoading={isLoading} />
+        return <LiquidityPage m2Data={m2Data ?? []} isLoading={m2Loading} />
       case 'credit':
-        return <CreditImpulsePage data={mockCreditImpulseData} isLoading={isLoading} />
+        return <CreditImpulsePage data={creditImpulseData ?? []} isLoading={creditLoading} />
       case 'maturities':
         return (
           <MaturitiesPage
-            quarterlyData={mockQuarterlyMaturities}
-            maturities={mockDebtMaturities}
-            isLoading={isLoading}
+            quarterlyData={quarterlyMaturities ?? []}
+            maturities={maturities ?? []}
+            isLoading={maturitiesLoading || quarterlyLoading}
           />
         )
       case 'correlations':
-        return <CorrelationsPage data={mockCorrelationMatrix} isLoading={isLoading} />
+        return <CorrelationsPage data={correlationMatrix ?? null} isLoading={correlationsLoading} />
       case 'howell-dashboard':
         return <HowellDashboardPage />
       case 'howell-tools':
@@ -125,7 +120,7 @@ function Dashboard() {
         return (
           <AlertsPage
             alerts={alerts}
-            isLoading={isLoading}
+            isLoading={alertsLoading}
             onMarkRead={handleDismissAlert}
             onMarkAllRead={handleMarkAllRead}
           />
@@ -135,9 +130,9 @@ function Dashboard() {
       default:
         return (
           <OverviewPage
-            m2Data={mockM2Data}
+            m2Data={m2Data ?? []}
             alerts={alerts}
-            stats={mockDashboardStats}
+            stats={stats ?? null}
             isLoading={isLoading}
             onDismissAlert={handleDismissAlert}
             onViewAllAlerts={() => setActiveTab('alerts')}
