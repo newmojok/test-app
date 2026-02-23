@@ -26,13 +26,26 @@ function generateM2Data(
   const data: M2DataPoint[] = []
   let value = baseValue
 
+  // Use seeded-style consistent values for recent months to ensure RoC > 5%
+  const recentBoostStart = months - 12 // Last 12 months get boosted growth
+
   for (let i = 0; i < months; i++) {
     const date = new Date(startDate)
     date.setMonth(date.getMonth() + i)
 
     // Add some realistic variation with cycles
     const cyclePhase = i * 0.15
-    const growth = 0.003 + Math.sin(cyclePhase) * 0.006 + (Math.random() - 0.5) * 0.002
+    let growth = 0.003 + Math.sin(cyclePhase) * 0.006
+
+    // Boost growth for recent months to ensure 6M RoC > 5%
+    // This makes the chart consistent with the "crossed 5%" alert
+    if (i >= recentBoostStart) {
+      growth += 0.005 // Additional 0.5% monthly growth for recent period
+    }
+
+    // Add small deterministic variation instead of random for consistency
+    growth += Math.sin(i * 0.7) * 0.001
+
     value *= 1 + growth
 
     // Calculate 6-month RoC
@@ -345,7 +358,7 @@ export const mockM2Data: M2CountryData[] = [
     name: 'United States',
     data: generateM2Data('US', 11.5e12, startDate, months),
     latestValue: 21.5e12,
-    latestRoc: 4.2,
+    latestRoc: 6.5,
     color: '#3b82f6',
   },
   {
@@ -446,7 +459,7 @@ export const mockAlerts: Alert[] = [
     type: 'M2_INFLECTION',
     severity: 'critical',
     title: 'Global M2 RoC Crossed +5% Threshold',
-    message: 'Global M2 6-month rate of change has crossed above +5%, signaling potential risk-on conditions. BTC has historically rallied 3-6 months after this signal.',
+    message: 'Global M2 6-month rate of change has crossed above +5%, signaling potential risk-on conditions. Current RoC: 5.2%. BTC has historically rallied 3-6 months after this signal.',
     timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
     relatedChart: 'liquidity',
     isRead: false,
@@ -497,7 +510,7 @@ export const mockCorrelationMatrix: CorrelationMatrix = {
 }
 
 export const mockDashboardStats: DashboardStats = {
-  globalM2Roc: 4.8,
+  globalM2Roc: 5.2,
   creditImpulse: 2.1,
   next12MonthMaturities: 2.59e12,
   activeAlerts: 2,
